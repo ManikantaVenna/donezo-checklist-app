@@ -300,17 +300,19 @@ export function ChecklistProvider({
     void scheduleDailyReminder(unfinishedDailyCount, reminderEnabled, reminderTime, reminderTimezone).catch((err) => {
       console.warn("Unable to schedule daily reminder.", err);
     });
-  }, [hasSnapshot, reminderEnabled, reminderTime, reminderTimezone, unfinishedDailyCount]);
+  }, [hasSnapshot, reminderEnabled, reminderTime, reminderTimezone, todayLocalDate, unfinishedDailyCount]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
+        const timezone = snapshot?.timezone ?? DEFAULT_TIMEZONE;
+        setTodayLocalDate(localDateKey(new Date(), timezone));
         void refresh();
       }
     });
 
     return () => subscription.remove();
-  }, [refresh]);
+  }, [refresh, snapshot?.timezone]);
 
   const value = useMemo(
     () => ({
