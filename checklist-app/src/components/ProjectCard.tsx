@@ -5,7 +5,7 @@ type ProjectCardProps = {
   name: string;
   remaining: number;
   percent: number;
-  onPress: () => void;
+  onPress?: () => void;
 };
 
 export function ProjectCard({ name, remaining, percent, onPress }: ProjectCardProps) {
@@ -13,13 +13,8 @@ export function ProjectCard({ name, remaining, percent, onPress }: ProjectCardPr
   const displayedPercent = Math.round(clampedPercent);
   const tasksLabel = `${remaining} ${remaining === 1 ? "task" : "tasks"} left`;
 
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${name}, ${tasksLabel}, ${displayedPercent}% complete`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-    >
+  const content = (
+    <>
       <View style={styles.row}>
         <View style={styles.copy}>
           <Text numberOfLines={1} style={styles.name}>{name}</Text>
@@ -30,6 +25,21 @@ export function ProjectCard({ name, remaining, percent, onPress }: ProjectCardPr
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${clampedPercent}%` }]} />
       </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.card}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${tasksLabel}, ${displayedPercent}% complete`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
+      {content}
     </Pressable>
   );
 }

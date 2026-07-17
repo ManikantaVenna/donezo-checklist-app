@@ -35,7 +35,7 @@ export function ProjectsScreen() {
         snapshot.projects.map((project) => {
           const tasks = snapshot.tasks.filter((task) => task.projectId === project.id);
           const complete = tasks.filter((task) => Boolean(task.completedAt)).length;
-          return <ProjectCard key={project.id} name={project.name} remaining={tasks.length - complete} percent={tasks.length ? (complete / tasks.length) * 100 : 0} onPress={() => undefined} />;
+          return <ProjectCard key={project.id} name={project.name} remaining={tasks.length - complete} percent={tasks.length ? (complete / tasks.length) * 100 : 0} />;
         })
       )}
     </ScrollView>

@@ -73,7 +73,7 @@ export function TodayScreen() {
         })
       )}
 
-      <SectionTitle title="Quick tasks" detail={`${quickTasks.length} open`} />
+      <SectionTitle title="Quick tasks" detail={`${quickTasks.filter((task) => !task.completedAt).length} open`} />
       {quickTasks.length === 0 ? (
         <Text style={styles.emptyCopy}>No quick tasks for today.</Text>
       ) : (
@@ -102,7 +102,6 @@ export function TodayScreen() {
               name={project.name}
               remaining={projectTasks.length - completeCount}
               percent={percent}
-              onPress={() => undefined}
             />
           );
         })
