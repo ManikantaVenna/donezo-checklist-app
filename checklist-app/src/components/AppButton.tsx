@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.card,
-    backgroundColor: colors.green,
+    backgroundColor: colors.accent,
     paddingHorizontal: 16,
   },
   ghost: {
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   label: {
-    color: "#06110F",
+    color: colors.black,
     fontFamily: fontFamily.black,
     fontSize: 14,
   },

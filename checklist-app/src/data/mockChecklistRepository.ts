@@ -1,4 +1,4 @@
-import type { ChecklistRepository, CreateProjectInput, CreateTaskInput } from "./checklistRepository";
+import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "./checklistRepository";
 import type { ChecklistSnapshot, DailyCompletion, Project, ReminderPreferences, Task } from "../domain/types";
 
 const DEMO_USER_ID = "demo-user";
@@ -34,6 +34,18 @@ function createDefaultReminderPreferences(userId: string): ReminderPreferences {
 
 function getNextSortOrder(items: Array<{ sortOrder: number }>): number {
   return items.reduce((highest, item) => Math.max(highest, item.sortOrder), 0) + 1;
+}
+
+function sameTaskList(task: Task, candidate: Task): boolean {
+  if (task.projectId !== null) {
+    return candidate.projectId === task.projectId;
+  }
+
+  return candidate.projectId === null && candidate.type === task.type;
+}
+
+function sortByManualOrder<T extends { sortOrder: number; createdAt: string }>(items: T[]): T[] {
+  return items.toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
 }
 
 export class MockChecklistRepository implements ChecklistRepository {
@@ -138,11 +150,11 @@ export class MockChecklistRepository implements ChecklistRepository {
     return {
       tasks: this.tasks
         .filter((task) => task.userId === userId && !task.isArchived)
-        .toSorted((first, second) => first.sortOrder - second.sortOrder)
+        .toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt))
         .map(cloneTask),
       projects: this.projects
         .filter((project) => project.userId === userId && !project.isArchived)
-        .toSorted((first, second) => first.sortOrder - second.sortOrder)
+        .toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt))
         .map(cloneProject),
       dailyCompletions: this.dailyCompletions
         .filter((completion) => completion.userId === userId)
@@ -157,8 +169,10 @@ export class MockChecklistRepository implements ChecklistRepository {
     const projectId = input.projectId ?? null;
     const sortSiblings =
       input.type === "project"
-        ? this.tasks.filter((task) => task.userId === userId && task.projectId === projectId)
-        : this.tasks.filter((task) => task.userId === userId && task.projectId === null);
+        ? this.tasks.filter((task) => task.userId === userId && task.projectId === projectId && !task.isArchived)
+        : this.tasks.filter(
+            (task) => task.userId === userId && task.projectId === null && task.type === input.type && !task.isArchived,
+          );
 
     this.tasks.push({
       id: `task-${this.nextTaskId}`,
@@ -193,6 +207,33 @@ export class MockChecklistRepository implements ChecklistRepository {
 
     task.isArchived = true;
     task.updatedAt = new Date().toISOString();
+  }
+
+  async moveTask(userId: string, taskId: string, direction: MoveDirection): Promise<void> {
+    const task = this.tasks.find((candidate) => candidate.userId === userId && candidate.id === taskId && !candidate.isArchived);
+    if (!task) {
+      return;
+    }
+
+    const siblings = sortByManualOrder(
+      this.tasks.filter((candidate) => candidate.userId === userId && !candidate.isArchived && sameTaskList(task, candidate)),
+    );
+    const currentIndex = siblings.findIndex((candidate) => candidate.id === taskId);
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
+      return;
+    }
+
+    const reordered = [...siblings];
+    const [movedTask] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, movedTask);
+
+    const now = new Date().toISOString();
+    reordered.forEach((candidate, index) => {
+      candidate.sortOrder = index + 1;
+      candidate.updatedAt = now;
+    });
   }
 
   async setTaskComplete(userId: string, taskId: string, localDate: string, complete: boolean): Promise<void> {

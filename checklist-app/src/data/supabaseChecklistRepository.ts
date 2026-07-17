@@ -1,4 +1,4 @@
-import type { ChecklistRepository, CreateProjectInput, CreateTaskInput } from "./checklistRepository";
+import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "./checklistRepository";
 import type { DailyCompletion, Project, ReminderPreferences, Task, TaskType } from "../domain/types";
 import { supabase } from "../lib/supabase";
 
@@ -110,6 +110,10 @@ function mapReminderPreferences(row: ReminderPreferenceRow): ReminderPreferences
   };
 }
 
+function sortByManualOrder<T extends { sort_order: number; created_at: string }>(rows: T[]): T[] {
+  return rows.toSorted((first, second) => first.sort_order - second.sort_order || first.created_at.localeCompare(second.created_at));
+}
+
 export const supabaseChecklistRepository: ChecklistRepository = {
   async getSnapshot(userId) {
     const db = client();
@@ -144,11 +148,32 @@ export const supabaseChecklistRepository: ChecklistRepository = {
   },
 
   async createTask(userId, input: CreateTaskInput) {
-    const { error } = await client().from("tasks").insert({
+    const db = client();
+    let orderQuery = db
+      .from("tasks")
+      .select("sort_order")
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    if (input.type === "project") {
+      orderQuery = orderQuery.eq("project_id", input.projectId ?? "");
+    } else {
+      orderQuery = orderQuery.is("project_id", null).eq("type", input.type);
+    }
+
+    const orderResult = await orderQuery;
+    throwIfError(orderResult);
+
+    const highestSortOrder = ((orderResult.data?.[0] as Pick<TaskRow, "sort_order"> | undefined)?.sort_order ?? 0) + 1;
+
+    const { error } = await db.from("tasks").insert({
       user_id: userId,
       project_id: input.projectId ?? null,
       type: input.type,
       title: input.title.trim(),
+      sort_order: highestSortOrder,
     });
 
     throwIfError({ error });
@@ -168,6 +193,55 @@ export const supabaseChecklistRepository: ChecklistRepository = {
       .eq("id", taskId);
 
     throwIfError({ error });
+  },
+
+  async moveTask(userId, taskId, direction: MoveDirection) {
+    const db = client();
+    const taskResult = await db
+      .from("tasks")
+      .select("id,user_id,project_id,type,sort_order,is_archived,created_at,updated_at,title,completed_at")
+      .eq("user_id", userId)
+      .eq("id", taskId)
+      .eq("is_archived", false)
+      .single();
+
+    throwIfError(taskResult);
+
+    const task = requireData(taskResult.data as TaskRow | null, "Task not found.");
+    let siblingsQuery = db
+      .from("tasks")
+      .select("id,user_id,project_id,type,sort_order,is_archived,created_at,updated_at,title,completed_at")
+      .eq("user_id", userId)
+      .eq("is_archived", false);
+
+    if (task.project_id) {
+      siblingsQuery = siblingsQuery.eq("project_id", task.project_id);
+    } else {
+      siblingsQuery = siblingsQuery.is("project_id", null).eq("type", task.type);
+    }
+
+    const siblingsResult = await siblingsQuery.order("sort_order").order("created_at");
+    throwIfError(siblingsResult);
+
+    const siblings = sortByManualOrder((siblingsResult.data ?? []) as TaskRow[]);
+    const currentIndex = siblings.findIndex((row) => row.id === taskId);
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
+      return;
+    }
+
+    const reordered = [...siblings];
+    const [movedTask] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, movedTask);
+
+    await Promise.all(
+      reordered.map((row, index) =>
+        db.from("tasks").update({ sort_order: index + 1 }).eq("user_id", userId).eq("id", row.id),
+      ),
+    ).then((results) => {
+      results.forEach(throwIfError);
+    });
   },
 
   async setTaskComplete(userId, taskId, localDate, complete) {

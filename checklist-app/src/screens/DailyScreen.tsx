@@ -9,7 +9,7 @@ export function DailyScreen() {
   if (loading && !snapshot) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.green} />
+        <ActivityIndicator color={colors.accent} />
         <Text style={styles.statusText}>Loading routines...</Text>
       </View>
     );
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 20, paddingBottom: 36 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24, backgroundColor: colors.bg },
-  eyebrow: { color: colors.green, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.4 },
+  eyebrow: { color: colors.accent, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.4 },
   title: { marginTop: 8, color: colors.text, fontFamily: fontFamily.black, fontSize: 32, lineHeight: 38 },
   subcopy: { marginTop: 7, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 14 },
   statusText: { color: colors.muted, fontFamily: fontFamily.medium, fontSize: 14 },
@@ -71,11 +71,11 @@ const styles = StyleSheet.create({
   panel: { marginTop: 28, borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 18 },
   panelLabel: { color: colors.muted, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.1 },
   panelValue: { marginTop: 10, color: colors.text, fontFamily: fontFamily.black, fontSize: 34 },
-  panelDetail: { marginTop: 4, color: colors.green, fontFamily: fontFamily.bold, fontSize: 12 },
+  panelDetail: { marginTop: 4, color: colors.accentSoft, fontFamily: fontFamily.bold, fontSize: 12 },
   sectionTitle: { marginTop: 28, marginBottom: 11, color: colors.text, fontFamily: fontFamily.black, fontSize: 16 },
   routineRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8, borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel2, padding: 14 },
   routineName: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fontFamily.bold, fontSize: 14 },
-  streak: { marginLeft: 12, borderRadius: radii.pill, backgroundColor: "rgba(88,231,189,0.1)", color: colors.green, fontFamily: fontFamily.black, fontSize: 11, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 6 },
+  streak: { marginLeft: 12, borderRadius: radii.pill, backgroundColor: colors.accentTint, color: colors.accentSoft, fontFamily: fontFamily.black, fontSize: 11, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 6 },
   emptyCopy: { color: colors.muted, fontFamily: fontFamily.regular, fontSize: 13 },
 });
 

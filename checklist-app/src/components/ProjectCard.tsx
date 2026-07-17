@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
   badge: {
     overflow: "hidden",
     borderRadius: radii.pill,
-    backgroundColor: "rgba(88,231,189,0.1)",
-    color: colors.green,
+    backgroundColor: colors.accentTint,
+    color: colors.accentSoft,
     fontFamily: fontFamily.black,
     fontSize: 11,
     paddingHorizontal: 8,
@@ -97,6 +97,6 @@ const styles = StyleSheet.create({
   fill: {
     height: "100%",
     borderRadius: radii.pill,
-    backgroundColor: colors.blue,
+    backgroundColor: colors.accent,
   },
 });

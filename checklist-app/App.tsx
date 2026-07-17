@@ -62,7 +62,7 @@ export default function App() {
     return (
       <View style={styles.loading}>
         <StatusBar style="light" />
-        <ActivityIndicator color={colors.green} />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -124,5 +124,5 @@ const styles = StyleSheet.create({
   tabSelected: { backgroundColor: colors.panel3 },
   tabPressed: { opacity: 0.72 },
   tabLabel: { color: colors.muted, fontFamily: fontFamily.bold, fontSize: 11 },
-  tabLabelSelected: { color: colors.green },
+  tabLabelSelected: { color: colors.accent },
 });

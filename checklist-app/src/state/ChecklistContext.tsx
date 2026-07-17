@@ -1,7 +1,7 @@
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ChecklistSnapshot, Task } from "../domain/types";
 import { calculateCurrentStreak, isCompletedOnDate, localDateKey } from "../domain/dates";
-import type { ChecklistRepository, CreateTaskInput } from "../data/checklistRepository";
+import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "../data/checklistRepository";
 import { scheduleDailyReminder } from "../lib/reminders";
 
 type ChecklistContextValue = {
@@ -11,7 +11,10 @@ type ChecklistContextValue = {
   error: string | null;
   refresh: () => Promise<void>;
   createTask: (input: CreateTaskInput) => Promise<void>;
+  archiveTask: (taskId: string) => Promise<void>;
+  moveTask: (taskId: string, direction: MoveDirection) => Promise<void>;
   toggleTask: (task: Task) => Promise<void>;
+  createProject: (input: CreateProjectInput) => Promise<void>;
 };
 
 const ChecklistContext = createContext<ChecklistContextValue | null>(null);
@@ -48,6 +51,46 @@ export function ChecklistProvider({
         await repository.createTask(userId, input);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to create task.");
+        return;
+      }
+      await refresh();
+    },
+    [refresh, repository, userId],
+  );
+
+  const archiveTask = useCallback(
+    async (taskId: string) => {
+      try {
+        await repository.archiveTask(userId, taskId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to delete task.");
+        return;
+      }
+      await refresh();
+    },
+    [refresh, repository, userId],
+  );
+
+  const moveTask = useCallback(
+    async (taskId: string, direction: MoveDirection) => {
+      try {
+        await repository.moveTask(userId, taskId, direction);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to reorder task.");
+        return;
+      }
+      await refresh();
+    },
+    [refresh, repository, userId],
+  );
+
+  const createProject = useCallback(
+    async (input: CreateProjectInput) => {
+      if (!input.name.trim()) return;
+      try {
+        await repository.createProject(userId, input);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to create project.");
         return;
       }
       await refresh();
@@ -186,8 +229,19 @@ export function ChecklistProvider({
   }, [hasSnapshot, reminderEnabled, reminderTime, unfinishedDailyCount]);
 
   const value = useMemo(
-    () => ({ snapshot, todayLocalDate, loading, error, refresh, createTask, toggleTask }),
-    [createTask, error, loading, refresh, snapshot, todayLocalDate, toggleTask],
+    () => ({
+      snapshot,
+      todayLocalDate,
+      loading,
+      error,
+      refresh,
+      createTask,
+      archiveTask,
+      moveTask,
+      toggleTask,
+      createProject,
+    }),
+    [archiveTask, createProject, createTask, error, loading, moveTask, refresh, snapshot, todayLocalDate, toggleTask],
   );
 
   return <ChecklistContext.Provider value={value}>{children}</ChecklistContext.Provider>;

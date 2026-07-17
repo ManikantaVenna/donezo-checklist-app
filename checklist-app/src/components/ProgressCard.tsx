@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   detail: {
     marginTop: 7,
-    color: colors.green,
+    color: colors.accentSoft,
     fontFamily: fontFamily.bold,
     fontSize: 12,
   },

@@ -8,7 +8,7 @@ export function SettingsScreen() {
   if (loading && !snapshot) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={colors.green} />
+        <ActivityIndicator color={colors.accent} />
         <Text style={styles.statusText}>Loading settings...</Text>
       </View>
     );
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   label: { color: colors.muted, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.1 },
   value: { marginTop: 9, color: colors.text, fontFamily: fontFamily.bold, fontSize: 16 },
   detail: { marginTop: 6, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 12, lineHeight: 18 },
-  enabled: { color: colors.green },
+  enabled: { color: colors.accentSoft },
 });
 
 export default SettingsScreen;
