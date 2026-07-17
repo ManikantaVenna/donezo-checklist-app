@@ -14,6 +14,7 @@ export type CreateProjectInput = {
 
 export type ChecklistRepository = {
   getSnapshot(userId: string): Promise<ChecklistSnapshot>;
+  subscribeToChanges?: (userId: string, onChange: () => void) => () => void;
   createTask(userId: string, input: CreateTaskInput): Promise<void>;
   renameTask(userId: string, taskId: string, title: string): Promise<void>;
   archiveTask(userId: string, taskId: string): Promise<void>;

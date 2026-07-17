@@ -144,3 +144,15 @@ create index projects_user_order_idx on public.projects (user_id, sort_order, cr
 create index tasks_user_type_order_idx on public.tasks (user_id, type, sort_order, created_at);
 create index tasks_project_order_idx on public.tasks (project_id, sort_order, created_at);
 create index daily_completions_user_task_date_idx on public.daily_completions (user_id, task_id, local_date desc);
+
+alter table public.profiles replica identity full;
+alter table public.projects replica identity full;
+alter table public.tasks replica identity full;
+alter table public.daily_completions replica identity full;
+alter table public.reminder_preferences replica identity full;
+
+alter publication supabase_realtime add table public.profiles;
+alter publication supabase_realtime add table public.projects;
+alter publication supabase_realtime add table public.tasks;
+alter publication supabase_realtime add table public.daily_completions;
+alter publication supabase_realtime add table public.reminder_preferences;

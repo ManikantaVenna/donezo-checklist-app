@@ -147,6 +147,31 @@ export const supabaseChecklistRepository: ChecklistRepository = {
     };
   },
 
+  subscribeToChanges(userId, onChange) {
+    const db = client();
+    const channel = db
+      .channel(`checklist-sync:${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `user_id=eq.${userId}` }, onChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "projects", filter: `user_id=eq.${userId}` }, onChange)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "daily_completions", filter: `user_id=eq.${userId}` },
+        onChange,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reminder_preferences", filter: `user_id=eq.${userId}` },
+        onChange,
+      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `id=eq.${userId}` }, onChange);
+
+    void channel.subscribe();
+
+    return () => {
+      void db.removeChannel(channel);
+    };
+  },
+
   async createTask(userId, input: CreateTaskInput) {
     const db = client();
     let orderQuery = db

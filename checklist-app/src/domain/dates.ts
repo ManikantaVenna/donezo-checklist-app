@@ -25,7 +25,7 @@ export function getNextLocalMidnight(date: Date, timezone: string): Date {
   return zonedDateTimeToUtc(year, month, day, 0, 0, 0, timezone);
 }
 
-function zonedDateTimeToUtc(
+export function zonedDateTimeToUtc(
   year: number,
   month: number,
   day: number,

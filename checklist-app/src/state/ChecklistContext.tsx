@@ -1,4 +1,5 @@
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 import type { ChecklistSnapshot, Task } from "../domain/types";
 import { calculateCurrentStreak, getNextLocalMidnight, isCompletedOnDate, localDateKey } from "../domain/dates";
 import { DEFAULT_TIMEZONE } from "../domain/timezones";
@@ -35,6 +36,7 @@ export function ChecklistProvider({
     localDateKey(new Date(), DEFAULT_TIMEZONE),
   );
   const pendingTaskIds = useRef(new Set<string>());
+  const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -233,6 +235,29 @@ export function ChecklistProvider({
   }, [refresh]);
 
   useEffect(() => {
+    if (!repository.subscribeToChanges) return undefined;
+
+    const unsubscribe = repository.subscribeToChanges(userId, () => {
+      if (realtimeRefreshTimeout.current) {
+        clearTimeout(realtimeRefreshTimeout.current);
+      }
+
+      realtimeRefreshTimeout.current = setTimeout(() => {
+        realtimeRefreshTimeout.current = null;
+        void refresh();
+      }, 250);
+    });
+
+    return () => {
+      if (realtimeRefreshTimeout.current) {
+        clearTimeout(realtimeRefreshTimeout.current);
+        realtimeRefreshTimeout.current = null;
+      }
+      unsubscribe();
+    };
+  }, [refresh, repository, userId]);
+
+  useEffect(() => {
     const timezone = snapshot?.timezone ?? DEFAULT_TIMEZONE;
     setTodayLocalDate(localDateKey(new Date(), timezone));
   }, [snapshot?.timezone]);
@@ -247,6 +272,7 @@ export function ChecklistProvider({
 
   const reminderEnabled = snapshot?.reminderPreferences.enabled ?? false;
   const reminderTime = snapshot?.reminderPreferences.reminderTime ?? "";
+  const reminderTimezone = snapshot?.timezone ?? DEFAULT_TIMEZONE;
   const hasSnapshot = snapshot !== null;
 
   useEffect(() => {
@@ -271,10 +297,20 @@ export function ChecklistProvider({
   useEffect(() => {
     if (!hasSnapshot) return;
 
-    void scheduleDailyReminder(unfinishedDailyCount, reminderEnabled, reminderTime).catch((err) => {
+    void scheduleDailyReminder(unfinishedDailyCount, reminderEnabled, reminderTime, reminderTimezone).catch((err) => {
       console.warn("Unable to schedule daily reminder.", err);
     });
-  }, [hasSnapshot, reminderEnabled, reminderTime, unfinishedDailyCount]);
+  }, [hasSnapshot, reminderEnabled, reminderTime, reminderTimezone, unfinishedDailyCount]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refresh();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refresh]);
 
   const value = useMemo(
     () => ({
