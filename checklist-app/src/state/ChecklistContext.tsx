@@ -2,6 +2,7 @@ import { createContext, type PropsWithChildren, useCallback, useContext, useEffe
 import type { ChecklistSnapshot, Task } from "../domain/types";
 import { calculateCurrentStreak, isCompletedOnDate, localDateKey } from "../domain/dates";
 import type { ChecklistRepository, CreateTaskInput } from "../data/checklistRepository";
+import { scheduleDailyReminder } from "../lib/reminders";
 
 type ChecklistContextValue = {
   snapshot: ChecklistSnapshot | null;
@@ -146,6 +147,34 @@ export function ChecklistProvider({
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const refreshAfterLocalDateChange = () => {
+      const timezone = snapshot?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (localDateKey(new Date(), timezone) !== todayLocalDate) {
+        void refresh();
+      }
+    };
+
+    const interval = setInterval(refreshAfterLocalDateChange, 60_000);
+    return () => clearInterval(interval);
+  }, [refresh, snapshot?.timezone, todayLocalDate]);
+
+  useEffect(() => {
+    if (!snapshot) return;
+
+    const unfinishedDailyCount = snapshot.tasks.filter(
+      (task) => task.type === "daily" && !isCompletedOnDate(snapshot.dailyCompletions, task.id, todayLocalDate),
+    ).length;
+
+    void scheduleDailyReminder(
+      unfinishedDailyCount,
+      snapshot.reminderPreferences.enabled,
+      snapshot.reminderPreferences.reminderTime,
+    ).catch((err) => {
+      console.warn("Unable to schedule daily reminder.", err);
+    });
+  }, [snapshot, todayLocalDate]);
 
   const value = useMemo(
     () => ({ snapshot, todayLocalDate, loading, error, refresh, createTask, toggleTask }),
