@@ -1,5 +1,7 @@
 create extension if not exists "pgcrypto";
 
+create schema if not exists private;
+
 create type public.task_type as enum ('quick', 'daily', 'project');
 
 create table public.profiles (
@@ -59,7 +61,7 @@ create table public.reminder_preferences (
   updated_at timestamptz not null default now()
 );
 
-create or replace function public.set_updated_at()
+create or replace function private.set_updated_at()
 returns trigger
 language plpgsql
 set search_path = ''
@@ -72,21 +74,21 @@ $$;
 
 create trigger profiles_updated_at
 before update on public.profiles
-for each row execute function public.set_updated_at();
+for each row execute function private.set_updated_at();
 
 create trigger projects_updated_at
 before update on public.projects
-for each row execute function public.set_updated_at();
+for each row execute function private.set_updated_at();
 
 create trigger tasks_updated_at
 before update on public.tasks
-for each row execute function public.set_updated_at();
+for each row execute function private.set_updated_at();
 
 create trigger reminder_preferences_updated_at
 before update on public.reminder_preferences
-for each row execute function public.set_updated_at();
+for each row execute function private.set_updated_at();
 
-create or replace function public.create_profile_for_user()
+create or replace function private.create_profile_for_user()
 returns trigger
 language plpgsql
 security definer
@@ -107,7 +109,7 @@ $$;
 
 create trigger create_profile_after_signup
 after insert on auth.users
-for each row execute function public.create_profile_for_user();
+for each row execute function private.create_profile_for_user();
 
 alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
@@ -117,28 +119,41 @@ alter table public.reminder_preferences enable row level security;
 
 create policy "profiles are private"
 on public.profiles for all
-using (auth.uid() = id)
-with check (auth.uid() = id);
+to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
 
 create policy "projects are private"
 on public.projects for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 create policy "tasks are private"
 on public.tasks for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 create policy "daily completions are private"
 on public.daily_completions for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 create policy "reminder preferences are private"
 on public.reminder_preferences for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+grant usage on schema public to authenticated;
+grant usage on type public.task_type to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.projects to authenticated;
+grant select, insert, update, delete on public.tasks to authenticated;
+grant select, insert, update, delete on public.daily_completions to authenticated;
+grant select, insert, update, delete on public.reminder_preferences to authenticated;
 
 create index projects_user_order_idx on public.projects (user_id, sort_order, created_at);
 create index tasks_user_type_order_idx on public.tasks (user_id, type, sort_order, created_at);
