@@ -9,21 +9,23 @@ type ProjectCardProps = {
 };
 
 export function ProjectCard({ name, remaining, percent, onPress }: ProjectCardProps) {
-  const clampedPercent = Math.max(0, Math.min(percent, 100));
+  const clampedPercent = Number.isFinite(percent) ? Math.max(0, Math.min(percent, 100)) : 0;
+  const displayedPercent = Math.round(clampedPercent);
+  const tasksLabel = `${remaining} ${remaining === 1 ? "task" : "tasks"} left`;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${remaining} tasks left, ${clampedPercent}% complete`}
+      accessibilityLabel={`${name}, ${tasksLabel}, ${displayedPercent}% complete`}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       <View style={styles.row}>
         <View style={styles.copy}>
           <Text numberOfLines={1} style={styles.name}>{name}</Text>
-          <Text style={styles.meta}>{remaining} tasks left</Text>
+          <Text style={styles.meta}>{tasksLabel}</Text>
         </View>
-        <Text style={styles.badge}>{clampedPercent}%</Text>
+        <Text style={styles.badge}>{displayedPercent}%</Text>
       </View>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${clampedPercent}%` }]} />
