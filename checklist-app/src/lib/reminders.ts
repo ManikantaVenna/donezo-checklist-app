@@ -3,6 +3,8 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 const DAILY_REMINDER_IDENTIFIER_PREFIX = "daily-reset-reminder";
+let scheduleSequence = 0;
+let scheduleOperation: Promise<void> = Promise.resolve();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -27,6 +29,16 @@ function reminderIdentifier(reminderTime: string) {
   return `${DAILY_REMINDER_IDENTIFIER_PREFIX}-${reminderTime}`;
 }
 
+function parseReminderTime(reminderTime: string) {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(reminderTime);
+  if (!match) return null;
+
+  return {
+    hour: Number(match[1]),
+    minute: Number(match[2]),
+  };
+}
+
 export async function cancelDailyReminders() {
   if (Platform.OS === "web" || !Device.isDevice) return;
 
@@ -46,15 +58,29 @@ export async function scheduleDailyReminder(
   enabled: boolean,
   reminderTime: string,
 ) {
-  await cancelDailyReminders();
-  if (!enabled || unfinishedCount <= 0) return;
+  const sequence = ++scheduleSequence;
+  const operation = scheduleOperation
+    .catch(() => undefined)
+    .then(() => scheduleDailyReminderForSequence(sequence, unfinishedCount, enabled, reminderTime));
+  scheduleOperation = operation.catch(() => undefined);
 
+  return operation;
+}
+
+async function scheduleDailyReminderForSequence(
+  sequence: number,
+  unfinishedCount: number,
+  enabled: boolean,
+  reminderTime: string,
+) {
+  await cancelDailyReminders();
+  if (sequence !== scheduleSequence) return;
+
+  const parsedReminderTime = parseReminderTime(reminderTime);
+  if (!enabled || unfinishedCount <= 0 || !parsedReminderTime) return;
   const content = reminderContent(unfinishedCount);
 
   if (Platform.OS === "web") {
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      new Notification(content.title, { body: content.body });
-    }
     return;
   }
 
@@ -64,9 +90,9 @@ export async function scheduleDailyReminder(
   if (permission.status !== "granted") {
     permission = await Notifications.requestPermissionsAsync();
   }
+  if (sequence !== scheduleSequence) return;
   if (permission.status !== "granted") return;
 
-  const [hour, minute] = reminderTime.split(":").map(Number);
   await Notifications.scheduleNotificationAsync({
     content: {
       ...content,
@@ -74,8 +100,8 @@ export async function scheduleDailyReminder(
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
+      hour: parsedReminderTime.hour,
+      minute: parsedReminderTime.minute,
     },
   });
 }

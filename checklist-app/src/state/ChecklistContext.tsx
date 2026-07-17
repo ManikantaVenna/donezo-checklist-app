@@ -151,6 +151,18 @@ export function ChecklistProvider({
     setTodayLocalDate(localDateKey(new Date(), timezone));
   }, [snapshot?.timezone]);
 
+  const unfinishedDailyCount = useMemo(() => {
+    if (!snapshot) return 0;
+
+    return snapshot.tasks.filter(
+      (task) => task.type === "daily" && !isCompletedOnDate(snapshot.dailyCompletions, task.id, todayLocalDate),
+    ).length;
+  }, [snapshot?.dailyCompletions, snapshot?.tasks, todayLocalDate]);
+
+  const reminderEnabled = snapshot?.reminderPreferences.enabled ?? false;
+  const reminderTime = snapshot?.reminderPreferences.reminderTime ?? "";
+  const hasSnapshot = snapshot !== null;
+
   useEffect(() => {
     const refreshAfterLocalDateChange = () => {
       const timezone = snapshot?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -166,20 +178,12 @@ export function ChecklistProvider({
   }, [refresh, snapshot?.timezone, todayLocalDate]);
 
   useEffect(() => {
-    if (!snapshot) return;
+    if (!hasSnapshot) return;
 
-    const unfinishedDailyCount = snapshot.tasks.filter(
-      (task) => task.type === "daily" && !isCompletedOnDate(snapshot.dailyCompletions, task.id, todayLocalDate),
-    ).length;
-
-    void scheduleDailyReminder(
-      unfinishedDailyCount,
-      snapshot.reminderPreferences.enabled,
-      snapshot.reminderPreferences.reminderTime,
-    ).catch((err) => {
+    void scheduleDailyReminder(unfinishedDailyCount, reminderEnabled, reminderTime).catch((err) => {
       console.warn("Unable to schedule daily reminder.", err);
     });
-  }, [snapshot, todayLocalDate]);
+  }, [hasSnapshot, reminderEnabled, reminderTime, unfinishedDailyCount]);
 
   const value = useMemo(
     () => ({ snapshot, todayLocalDate, loading, error, refresh, createTask, toggleTask }),
