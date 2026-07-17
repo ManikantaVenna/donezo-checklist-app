@@ -16,13 +16,14 @@ create table public.projects (
   sort_order integer not null default 0,
   is_archived boolean not null default false,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint projects_id_user_id_key unique (id, user_id)
 );
 
 create table public.tasks (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  project_id uuid references public.projects(id) on delete cascade,
+  project_id uuid,
   type public.task_type not null,
   title text not null check (char_length(trim(title)) between 1 and 240),
   sort_order integer not null default 0,
@@ -33,16 +34,21 @@ create table public.tasks (
   constraint project_task_requires_project check (
     (type = 'project' and project_id is not null) or
     (type <> 'project' and project_id is null)
-  )
+  ),
+  constraint tasks_project_user_id_fkey foreign key (project_id, user_id)
+    references public.projects (id, user_id) on delete cascade,
+  constraint tasks_id_user_id_key unique (id, user_id)
 );
 
 create table public.daily_completions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  task_id uuid not null references public.tasks(id) on delete cascade,
+  task_id uuid not null,
   local_date date not null,
   completed_at timestamptz not null default now(),
-  unique (user_id, task_id, local_date)
+  unique (user_id, task_id, local_date),
+  constraint daily_completions_task_user_id_fkey foreign key (task_id, user_id)
+    references public.tasks (id, user_id) on delete cascade
 );
 
 create table public.reminder_preferences (
@@ -56,6 +62,7 @@ create table public.reminder_preferences (
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
@@ -83,7 +90,7 @@ create or replace function public.create_profile_for_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   insert into public.profiles (id)
