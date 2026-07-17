@@ -1,6 +1,7 @@
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ChecklistSnapshot, Task } from "../domain/types";
-import { calculateCurrentStreak, isCompletedOnDate, localDateKey } from "../domain/dates";
+import { calculateCurrentStreak, getNextLocalMidnight, isCompletedOnDate, localDateKey } from "../domain/dates";
+import { DEFAULT_TIMEZONE } from "../domain/timezones";
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "../data/checklistRepository";
 import { scheduleDailyReminder } from "../lib/reminders";
 
@@ -31,7 +32,7 @@ export function ChecklistProvider({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [todayLocalDate, setTodayLocalDate] = useState(() =>
-    localDateKey(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone),
+    localDateKey(new Date(), DEFAULT_TIMEZONE),
   );
   const pendingTaskIds = useRef(new Set<string>());
 
@@ -147,7 +148,7 @@ export function ChecklistProvider({
 
       const localDate = localDateKey(
         new Date(),
-        snapshot.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+        snapshot.timezone ?? DEFAULT_TIMEZONE,
       );
       const previousTask = snapshot.tasks.find((entry) => entry.id === task.id);
       const previousCompletedAt = previousTask ? previousTask.completedAt : task.completedAt;
@@ -232,7 +233,7 @@ export function ChecklistProvider({
   }, [refresh]);
 
   useEffect(() => {
-    const timezone = snapshot?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const timezone = snapshot?.timezone ?? DEFAULT_TIMEZONE;
     setTodayLocalDate(localDateKey(new Date(), timezone));
   }, [snapshot?.timezone]);
 
@@ -250,7 +251,7 @@ export function ChecklistProvider({
 
   useEffect(() => {
     const refreshAfterLocalDateChange = () => {
-      const timezone = snapshot?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timezone = snapshot?.timezone ?? DEFAULT_TIMEZONE;
       const nextLocalDate = localDateKey(new Date(), timezone);
       if (nextLocalDate !== todayLocalDate) {
         setTodayLocalDate(nextLocalDate);
@@ -258,8 +259,13 @@ export function ChecklistProvider({
       }
     };
 
-    const interval = setInterval(refreshAfterLocalDateChange, 60_000);
-    return () => clearInterval(interval);
+    const timezone = snapshot?.timezone ?? DEFAULT_TIMEZONE;
+    const now = new Date();
+    const nextReset = getNextLocalMidnight(now, timezone);
+    const resetDelay = Math.max(1_000, nextReset.getTime() - now.getTime() + 1_000);
+    const timeout = setTimeout(refreshAfterLocalDateChange, Math.min(resetDelay, 2_147_483_647));
+
+    return () => clearTimeout(timeout);
   }, [refresh, snapshot?.timezone, todayLocalDate]);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateCurrentStreak,
+  getNextLocalMidnight,
   isCompletedOnDate,
   localDateKey,
   shiftLocalDateKey,
@@ -53,5 +54,15 @@ describe("calculateCurrentStreak", () => {
   it("returns zero when today was missed", () => {
     const completions = [completion("daily-1", "2026-07-16")];
     expect(calculateCurrentStreak(completions, "daily-1", "2026-07-17")).toBe(0);
+  });
+});
+
+describe("getNextLocalMidnight", () => {
+  it("returns the next midnight instant for the selected timezone", () => {
+    const date = new Date("2026-07-17T15:30:00.000Z");
+
+    expect(getNextLocalMidnight(date, "America/New_York").toISOString()).toBe("2026-07-18T04:00:00.000Z");
+    expect(getNextLocalMidnight(date, "Asia/Kolkata").toISOString()).toBe("2026-07-17T18:30:00.000Z");
+    expect(getNextLocalMidnight(date, "Europe/London").toISOString()).toBe("2026-07-17T23:00:00.000Z");
   });
 });

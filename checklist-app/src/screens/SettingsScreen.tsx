@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
+import {
+  DEFAULT_TIMEZONE,
+  TIMEZONE_OPTIONS,
+  findTimezoneOption,
+  formatClockInTimezone,
+  formatNextResetInTimezone,
+  isSupportedTimezone,
+  supportedTimezoneOrDefault,
+} from "../domain/timezones";
 import { useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
@@ -12,19 +21,25 @@ type SettingsScreenProps = {
 
 export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSignOut }: SettingsScreenProps) {
   const { snapshot, loading, error, updateReminderPreference, updateTimezone } = useChecklist();
-  const [timezone, setTimezone] = useState("America/New_York");
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [reminderTime, setReminderTime] = useState("23:00");
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [previewNow, setPreviewNow] = useState(() => new Date());
 
   useEffect(() => {
     if (!snapshot) return;
 
-    setTimezone(snapshot.timezone || "America/New_York");
+    setTimezone(supportedTimezoneOrDefault(snapshot.timezone));
     setReminderEnabled(snapshot.reminderPreferences.enabled);
     setReminderTime(snapshot.reminderPreferences.reminderTime || "23:00");
   }, [snapshot]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setPreviewNow(new Date()), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (loading && !snapshot) {
     return (
@@ -45,11 +60,10 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
   }
 
   const saveSettings = async () => {
-    const trimmedTimezone = timezone.trim();
     const trimmedReminderTime = reminderTime.trim();
 
-    if (!trimmedTimezone) {
-      setFormError("Timezone cannot be empty.");
+    if (!isSupportedTimezone(timezone)) {
+      setFormError("Choose a timezone from the list.");
       return;
     }
 
@@ -60,12 +74,13 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
 
     setBusy(true);
     setFormError(null);
-    await updateTimezone(trimmedTimezone);
+    await updateTimezone(timezone);
     await updateReminderPreference(reminderEnabled, trimmedReminderTime);
     setBusy(false);
   };
 
   const formattedReminderTime = reminderEnabled ? formatReminderTime(reminderTime) : "Off";
+  const selectedTimezone = findTimezoneOption(timezone);
 
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
@@ -78,17 +93,41 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
       <Text style={styles.sectionTitle}>Schedule</Text>
       <View style={styles.panel}>
         <Text style={styles.label}>TIMEZONE</Text>
-        <TextInput
-          accessibilityLabel="Timezone"
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={setTimezone}
-          placeholder="America/New_York"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
-          value={timezone}
-        />
-        <Text style={styles.detail}>Default is America/New_York. Daily tasks reset at local midnight.</Text>
+        <View style={styles.resetPreview}>
+          <Text style={styles.previewTitle}>{selectedTimezone?.label ?? "New York"}</Text>
+          <Text style={styles.previewClock}>{formatClockInTimezone(previewNow, timezone)}</Text>
+          <Text style={styles.previewDetail}>Next daily reset: {formatNextResetInTimezone(previewNow, timezone)}</Text>
+        </View>
+        <View style={styles.timezoneGrid}>
+          {TIMEZONE_OPTIONS.map((option) => {
+            const selected = option.id === timezone;
+            return (
+              <Pressable
+                key={option.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Use ${option.label} timezone`}
+                accessibilityState={{ selected }}
+                onPress={() => {
+                  setTimezone(option.id);
+                  setFormError(null);
+                }}
+                style={({ pressed }) => [
+                  styles.timezoneOption,
+                  selected && styles.timezoneOptionSelected,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.timezoneName, selected && styles.timezoneNameSelected]}>{option.label}</Text>
+                <Text style={styles.timezoneRegion}>{option.region}</Text>
+                <Text style={styles.timezoneId}>{option.id}</Text>
+                <Text style={[styles.timezoneClock, selected && styles.timezoneClockSelected]}>
+                  {formatClockInTimezone(previewNow, option.id)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.detail}>Daily tasks reset at 12:00 AM in the selected timezone.</Text>
       </View>
 
       <View style={styles.panel}>
@@ -207,6 +246,82 @@ const styles = StyleSheet.create({
   value: { marginTop: 9, color: colors.text, fontFamily: fontFamily.bold, fontSize: 16 },
   detail: { marginTop: 8, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 12, lineHeight: 18 },
   enabled: { color: colors.accentSoft },
+  resetPreview: {
+    marginTop: 10,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.accentTint,
+    padding: 13,
+  },
+  previewTitle: {
+    color: colors.text,
+    fontFamily: fontFamily.black,
+    fontSize: 15,
+  },
+  previewClock: {
+    marginTop: 6,
+    color: colors.accentSoft,
+    fontFamily: fontFamily.black,
+    fontSize: 26,
+    lineHeight: 31,
+  },
+  previewDetail: {
+    marginTop: 4,
+    color: colors.muted,
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  timezoneGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  timezoneOption: {
+    minWidth: 142,
+    flexGrow: 1,
+    flexBasis: "47%",
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.panel2,
+    padding: 11,
+  },
+  timezoneOptionSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentTint,
+  },
+  timezoneName: {
+    color: colors.text,
+    fontFamily: fontFamily.black,
+    fontSize: 13,
+  },
+  timezoneNameSelected: {
+    color: colors.accentSoft,
+  },
+  timezoneRegion: {
+    marginTop: 4,
+    color: colors.muted,
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
+  },
+  timezoneId: {
+    marginTop: 5,
+    color: colors.muted,
+    fontFamily: fontFamily.medium,
+    fontSize: 10,
+  },
+  timezoneClock: {
+    marginTop: 8,
+    color: colors.text,
+    fontFamily: fontFamily.black,
+    fontSize: 13,
+  },
+  timezoneClockSelected: {
+    color: colors.accentSoft,
+  },
   input: {
     minHeight: 48,
     marginTop: 10,
