@@ -24,12 +24,10 @@ export function ChecklistProvider({
   const [snapshot, setSnapshot] = useState<ChecklistSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [todayLocalDate, setTodayLocalDate] = useState(() =>
+    localDateKey(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone),
+  );
   const pendingTaskIds = useRef(new Set<string>());
-
-  const todayLocalDate = useMemo(() => {
-    const timezone = snapshot?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return localDateKey(new Date(), timezone);
-  }, [snapshot?.timezone]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -149,9 +147,16 @@ export function ChecklistProvider({
   }, [refresh]);
 
   useEffect(() => {
+    const timezone = snapshot?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setTodayLocalDate(localDateKey(new Date(), timezone));
+  }, [snapshot?.timezone]);
+
+  useEffect(() => {
     const refreshAfterLocalDateChange = () => {
       const timezone = snapshot?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (localDateKey(new Date(), timezone) !== todayLocalDate) {
+      const nextLocalDate = localDateKey(new Date(), timezone);
+      if (nextLocalDate !== todayLocalDate) {
+        setTodayLocalDate(nextLocalDate);
         void refresh();
       }
     };
