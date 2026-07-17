@@ -61,10 +61,14 @@ export function ChecklistProvider({
       if (!snapshot || pendingTaskIds.current.has(task.id)) return;
       pendingTaskIds.current.add(task.id);
 
-      const previousSnapshot = snapshot;
       const localDate = localDateKey(
         new Date(),
         snapshot.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      );
+      const previousTask = snapshot.tasks.find((entry) => entry.id === task.id);
+      const previousCompletedAt = previousTask ? previousTask.completedAt : task.completedAt;
+      const previousDailyCompletions = snapshot.dailyCompletions.filter(
+        (entry) => entry.taskId === task.id && entry.localDate === localDate,
       );
       const currentlyComplete =
         task.type === "daily"
@@ -108,7 +112,28 @@ export function ChecklistProvider({
         await repository.setTaskComplete(userId, task.id, localDate, !currentlyComplete);
         await refresh();
       } catch (err) {
-        setSnapshot(previousSnapshot);
+        setSnapshot((current) => {
+          if (!current) return current;
+
+          return {
+            ...current,
+            tasks:
+              task.type === "daily"
+                ? current.tasks
+                : current.tasks.map((entry) =>
+                    entry.id === task.id ? { ...entry, completedAt: previousCompletedAt } : entry,
+                  ),
+            dailyCompletions:
+              task.type !== "daily"
+                ? current.dailyCompletions
+                : [
+                    ...current.dailyCompletions.filter(
+                      (entry) => !(entry.taskId === task.id && entry.localDate === localDate),
+                    ),
+                    ...previousDailyCompletions,
+                  ],
+          };
+        });
         await refresh();
         setError(err instanceof Error ? err.message : "Unable to update task.");
       } finally {
