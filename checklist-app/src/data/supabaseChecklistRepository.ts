@@ -294,13 +294,22 @@ export const supabaseChecklistRepository: ChecklistRepository = {
   },
 
   async archiveProject(userId, projectId) {
-    const { error } = await client()
+    const db = client();
+    const projectResult = await db
       .from("projects")
       .update({ is_archived: true })
       .eq("user_id", userId)
       .eq("id", projectId);
 
-    throwIfError({ error });
+    throwIfError(projectResult);
+
+    const taskResult = await db
+      .from("tasks")
+      .update({ is_archived: true })
+      .eq("user_id", userId)
+      .eq("project_id", projectId);
+
+    throwIfError(taskResult);
   },
 
   async updateReminderPreference(userId, enabled, reminderTime) {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
 import { ProjectCard } from "../components/ProjectCard";
 import { TaskComposer } from "../components/TaskComposer";
@@ -10,7 +10,8 @@ import { useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
 export function ProjectsScreen() {
-  const { snapshot, loading, error, createProject, createTask, archiveTask, moveTask, toggleTask } = useChecklist();
+  const { snapshot, loading, error, createProject, createTask, archiveTask, archiveProject, moveTask, toggleTask } =
+    useChecklist();
 
   if (loading && !snapshot) {
     return (
@@ -51,6 +52,7 @@ export function ProjectsScreen() {
             <ProjectSection
               key={project.id}
               archiveTask={archiveTask}
+              archiveProject={archiveProject}
               createTask={createTask}
               moveTask={moveTask}
               project={project}
@@ -103,6 +105,7 @@ function ProjectSection({
   tasks,
   createTask,
   archiveTask,
+  archiveProject,
   moveTask,
   toggleTask,
 }: {
@@ -110,6 +113,7 @@ function ProjectSection({
   tasks: Task[];
   createTask: (input: CreateTaskInput) => Promise<void>;
   archiveTask: (taskId: string) => Promise<void>;
+  archiveProject: (projectId: string) => Promise<void>;
   moveTask: (taskId: string, direction: "up" | "down") => Promise<void>;
   toggleTask: (task: Task) => Promise<void>;
 }) {
@@ -122,6 +126,17 @@ function ProjectSection({
         percent={tasks.length ? (complete / tasks.length) * 100 : 0}
         remaining={tasks.length - complete}
       />
+      <View style={styles.projectActions}>
+        <Text style={styles.projectHint}>Deleting a project removes its active tasks too.</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${project.name}`}
+          onPress={() => archiveProject(project.id)}
+          style={({ pressed }) => [styles.deleteProjectButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.deleteProjectText}>Delete project</Text>
+        </Pressable>
+      </View>
       <TaskComposer
         compact
         defaultType="project"
@@ -216,6 +231,37 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     fontSize: 13,
     lineHeight: 19,
+  },
+  projectActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 4,
+  },
+  projectHint: {
+    flex: 1,
+    color: colors.muted,
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  deleteProjectButton: {
+    minHeight: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(242,109,95,0.28)",
+    paddingHorizontal: 12,
+  },
+  deleteProjectText: {
+    color: colors.danger,
+    fontFamily: fontFamily.black,
+    fontSize: 11,
+  },
+  pressed: {
+    opacity: 0.78,
   },
 });
 

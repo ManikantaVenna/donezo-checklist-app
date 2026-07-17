@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
@@ -29,6 +29,13 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("today");
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(() => !supabase);
+
+  const signOut = useCallback(async () => {
+    if (!supabase) return;
+
+    await supabase.auth.signOut();
+    setSession(null);
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -73,12 +80,19 @@ export default function App() {
 
   const repository = hasSupabaseEnv() && session ? supabaseChecklistRepository : mockChecklistRepository;
   const userId = session?.user.id ?? "demo-user";
+  const usingDemoMode = !hasSupabaseEnv() || !session;
 
   return (
     <ChecklistProvider repository={repository} userId={userId}>
       <View style={styles.app}>
         <StatusBar style="light" />
-        <View style={styles.screen}>{renderScreen(tab)}</View>
+        <View style={styles.screen}>
+          {renderScreen(tab, {
+            accountEmail: session?.user.email ?? null,
+            onSignOut: signOut,
+            usingDemoMode,
+          })}
+        </View>
         <View accessibilityRole="tablist" style={styles.nav}>
           {tabs.map((item) => {
             const selected = item.id === tab;
@@ -101,14 +115,17 @@ export default function App() {
   );
 }
 
-function renderScreen(tab: Tab) {
+function renderScreen(
+  tab: Tab,
+  settingsProps: { accountEmail: string | null; onSignOut: () => Promise<void>; usingDemoMode: boolean },
+) {
   switch (tab) {
     case "daily":
       return <DailyScreen />;
     case "projects":
       return <ProjectsScreen />;
     case "settings":
-      return <SettingsScreen />;
+      return <SettingsScreen {...settingsProps} />;
     case "today":
     default:
       return <TodayScreen />;

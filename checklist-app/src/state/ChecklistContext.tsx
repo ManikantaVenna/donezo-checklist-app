@@ -15,6 +15,9 @@ type ChecklistContextValue = {
   moveTask: (taskId: string, direction: MoveDirection) => Promise<void>;
   toggleTask: (task: Task) => Promise<void>;
   createProject: (input: CreateProjectInput) => Promise<void>;
+  archiveProject: (projectId: string) => Promise<void>;
+  updateReminderPreference: (enabled: boolean, reminderTime: string) => Promise<void>;
+  updateTimezone: (timezone: string) => Promise<void>;
 };
 
 const ChecklistContext = createContext<ChecklistContextValue | null>(null);
@@ -91,6 +94,45 @@ export function ChecklistProvider({
         await repository.createProject(userId, input);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to create project.");
+        return;
+      }
+      await refresh();
+    },
+    [refresh, repository, userId],
+  );
+
+  const archiveProject = useCallback(
+    async (projectId: string) => {
+      try {
+        await repository.archiveProject(userId, projectId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to delete project.");
+        return;
+      }
+      await refresh();
+    },
+    [refresh, repository, userId],
+  );
+
+  const updateReminderPreference = useCallback(
+    async (enabled: boolean, reminderTime: string) => {
+      try {
+        await repository.updateReminderPreference(userId, enabled, reminderTime);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to update reminder.");
+        return;
+      }
+      await refresh();
+    },
+    [refresh, repository, userId],
+  );
+
+  const updateTimezone = useCallback(
+    async (timezone: string) => {
+      try {
+        await repository.updateTimezone(userId, timezone);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to update timezone.");
         return;
       }
       await refresh();
@@ -240,8 +282,25 @@ export function ChecklistProvider({
       moveTask,
       toggleTask,
       createProject,
+      archiveProject,
+      updateReminderPreference,
+      updateTimezone,
     }),
-    [archiveTask, createProject, createTask, error, loading, moveTask, refresh, snapshot, todayLocalDate, toggleTask],
+    [
+      archiveProject,
+      archiveTask,
+      createProject,
+      createTask,
+      error,
+      loading,
+      moveTask,
+      refresh,
+      snapshot,
+      todayLocalDate,
+      toggleTask,
+      updateReminderPreference,
+      updateTimezone,
+    ],
   );
 
   return <ChecklistContext.Provider value={value}>{children}</ChecklistContext.Provider>;

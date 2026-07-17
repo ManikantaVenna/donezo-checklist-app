@@ -4,7 +4,7 @@ create type public.task_type as enum ('quick', 'daily', 'project');
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  timezone text not null default 'UTC',
+  timezone text not null default 'America/New_York',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

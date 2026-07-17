@@ -3,10 +3,7 @@ import type { ChecklistSnapshot, DailyCompletion, Project, ReminderPreferences, 
 
 const DEMO_USER_ID = "demo-user";
 const INITIAL_NOW = "2026-07-17T12:00:00.000Z";
-
-function resolvedTimezone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-}
+const DEFAULT_TIMEZONE = "America/New_York";
 
 function cloneTask(task: Task): Task {
   return { ...task };
@@ -27,7 +24,7 @@ function cloneReminderPreferences(preferences: ReminderPreferences): ReminderPre
 function createDefaultReminderPreferences(userId: string): ReminderPreferences {
   return {
     userId,
-    enabled: false,
+    enabled: true,
     reminderTime: "23:00",
   };
 }
@@ -140,6 +137,8 @@ export class MockChecklistRepository implements ChecklistRepository {
     ],
   ]);
 
+  private timezones = new Map<string, string>([[DEMO_USER_ID, DEFAULT_TIMEZONE]]);
+
   private nextTaskId = 1;
   private nextProjectId = 2;
   private nextDailyCompletionId = 3;
@@ -160,7 +159,7 @@ export class MockChecklistRepository implements ChecklistRepository {
         .filter((completion) => completion.userId === userId)
         .map(cloneDailyCompletion),
       reminderPreferences: cloneReminderPreferences(reminderPreferences),
-      timezone: resolvedTimezone(),
+      timezone: this.timezones.get(userId) ?? DEFAULT_TIMEZONE,
     };
   }
 
@@ -308,6 +307,13 @@ export class MockChecklistRepository implements ChecklistRepository {
 
     project.isArchived = true;
     project.updatedAt = new Date().toISOString();
+
+    this.tasks
+      .filter((task) => task.userId === userId && task.projectId === projectId)
+      .forEach((task) => {
+        task.isArchived = true;
+        task.updatedAt = project.updatedAt;
+      });
   }
 
   async updateReminderPreference(userId: string, enabled: boolean, reminderTime: string): Promise<void> {
@@ -318,8 +324,8 @@ export class MockChecklistRepository implements ChecklistRepository {
     });
   }
 
-  async updateTimezone(_userId: string, _timezone: string): Promise<void> {
-    return;
+  async updateTimezone(userId: string, timezone: string): Promise<void> {
+    this.timezones.set(userId, timezone.trim() || DEFAULT_TIMEZONE);
   }
 }
 
