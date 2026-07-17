@@ -25,22 +25,40 @@ const tabs: Array<{ id: Tab; label: string }> = [
 ];
 
 export default function App() {
-  const [fontsLoaded] = useAppFonts();
+  const [fontsLoaded, fontError] = useAppFonts();
   const [tab, setTab] = useState<Tab>("today");
   const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(() => !supabase);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setAuthReady(true);
+      return;
+    }
 
-    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    let active = true;
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (active) setSession(data.session);
+      })
+      .catch(() => {
+        // The sign-in screen is the safe fallback if session hydration fails.
+      })
+      .finally(() => {
+        if (active) setAuthReady(true);
+      });
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
     });
 
-    return () => subscription.subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.subscription.unsubscribe();
+    };
   }, []);
 
-  if (!fontsLoaded) {
+  if ((!fontsLoaded && !fontError) || !authReady) {
     return (
       <View style={styles.loading}>
         <StatusBar style="light" />

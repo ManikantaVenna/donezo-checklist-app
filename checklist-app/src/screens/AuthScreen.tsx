@@ -35,6 +35,8 @@ export function AuthScreen() {
 
       if (result.error) {
         Alert.alert("Authentication failed", result.error.message);
+      } else if (action === "signup" && !result.data.session) {
+        Alert.alert("Check your email", "Confirm your email address to finish creating your account.");
       }
     } catch (error) {
       Alert.alert(
@@ -87,10 +89,12 @@ export function AuthScreen() {
 
           <View style={styles.actions}>
             <AppButton
+              disabled={Boolean(busy)}
               label={busy === "signin" ? "Signing in..." : "Sign in"}
               onPress={() => submit("signin")}
             />
             <AppButton
+              disabled={Boolean(busy)}
               label={busy === "signup" ? "Creating account..." : "Create account"}
               onPress={() => submit("signup")}
               tone="ghost"
@@ -98,7 +102,7 @@ export function AuthScreen() {
           </View>
         </View>
 
-        <Text style={styles.footer}>Use any account in demo mode. Add Supabase credentials to enable sync.</Text>
+        <Text style={styles.footer}>Your checklist will stay in sync across your signed-in devices.</Text>
       </View>
     </KeyboardAvoidingView>
   );

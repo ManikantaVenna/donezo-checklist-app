@@ -5,14 +5,22 @@ type AppButtonProps = {
   label: string;
   onPress: () => void;
   tone?: "primary" | "ghost";
+  disabled?: boolean;
 };
 
-export function AppButton({ label, onPress, tone = "primary" }: AppButtonProps) {
+export function AppButton({ label, onPress, tone = "primary", disabled = false }: AppButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, tone === "ghost" && styles.ghost, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.button,
+        tone === "ghost" && styles.ghost,
+        disabled && styles.disabled,
+        pressed && styles.pressed,
+      ]}
     >
       <Text style={[styles.label, tone === "ghost" && styles.ghostLabel]}>{label}</Text>
     </Pressable>
@@ -35,6 +43,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.78,
+  },
+  disabled: {
+    opacity: 0.45,
   },
   label: {
     color: "#06110F",
