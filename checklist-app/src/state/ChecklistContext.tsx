@@ -86,8 +86,8 @@ export function ChecklistProvider({
         await repository.setTaskComplete(userId, task.id, todayLocalDate, !currentlyComplete);
         await refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to update task.");
         await refresh();
+        setError(err instanceof Error ? err.message : "Unable to update task.");
       }
     },
     [refresh, repository, snapshot, todayLocalDate, userId],
