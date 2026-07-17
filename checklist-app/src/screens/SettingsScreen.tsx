@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { AppButton } from "../components/AppButton";
 import {
   DEFAULT_TIMEZONE,
-  TIMEZONE_OPTIONS,
+  filterTimezoneOptions,
   findTimezoneOption,
   formatClockInTimezone,
   formatNextResetInTimezone,
@@ -27,6 +27,8 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewNow, setPreviewNow] = useState(() => new Date());
+  const [timezonePickerOpen, setTimezonePickerOpen] = useState(false);
+  const [timezoneSearch, setTimezoneSearch] = useState("");
 
   useEffect(() => {
     if (!snapshot) return;
@@ -81,6 +83,7 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
 
   const formattedReminderTime = reminderEnabled ? formatReminderTime(reminderTime) : "Off";
   const selectedTimezone = findTimezoneOption(timezone);
+  const filteredTimezones = filterTimezoneOptions(timezoneSearch);
 
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
@@ -98,35 +101,66 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
           <Text style={styles.previewClock}>{formatClockInTimezone(previewNow, timezone)}</Text>
           <Text style={styles.previewDetail}>Next daily reset: {formatNextResetInTimezone(previewNow, timezone)}</Text>
         </View>
-        <View style={styles.timezoneGrid}>
-          {TIMEZONE_OPTIONS.map((option) => {
-            const selected = option.id === timezone;
-            return (
-              <Pressable
-                key={option.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Use ${option.label} timezone`}
-                accessibilityState={{ selected }}
-                onPress={() => {
-                  setTimezone(option.id);
-                  setFormError(null);
-                }}
-                style={({ pressed }) => [
-                  styles.timezoneOption,
-                  selected && styles.timezoneOptionSelected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={[styles.timezoneName, selected && styles.timezoneNameSelected]}>{option.label}</Text>
-                <Text style={styles.timezoneRegion}>{option.region}</Text>
-                <Text style={styles.timezoneId}>{option.id}</Text>
-                <Text style={[styles.timezoneClock, selected && styles.timezoneClockSelected]}>
-                  {formatClockInTimezone(previewNow, option.id)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={timezonePickerOpen ? "Hide timezone picker" : "Change timezone"}
+          onPress={() => setTimezonePickerOpen((open) => !open)}
+          style={({ pressed }) => [styles.timezonePickerButton, pressed && styles.pressed]}
+        >
+          <View style={styles.timezonePickerCopy}>
+            <Text style={styles.timezonePickerTitle}>Selected timezone</Text>
+            <Text style={styles.timezonePickerValue}>{selectedTimezone?.label ?? "New York"} · {timezone}</Text>
+          </View>
+          <Text style={styles.timezonePickerAction}>{timezonePickerOpen ? "Hide" : "Change"}</Text>
+        </Pressable>
+        {timezonePickerOpen ? (
+          <View style={styles.timezonePickerPanel}>
+            <TextInput
+              accessibilityLabel="Search timezones"
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setTimezoneSearch}
+              placeholder="Search city, country, or timezone..."
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={timezoneSearch}
+            />
+            <View style={styles.timezoneGrid}>
+              {filteredTimezones.map((option) => {
+                const selected = option.id === timezone;
+                return (
+                  <Pressable
+                    key={option.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Use ${option.label} timezone`}
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      setTimezone(option.id);
+                      setFormError(null);
+                      setTimezonePickerOpen(false);
+                      setTimezoneSearch("");
+                    }}
+                    style={({ pressed }) => [
+                      styles.timezoneOption,
+                      selected && styles.timezoneOptionSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.timezoneName, selected && styles.timezoneNameSelected]}>{option.label}</Text>
+                    <Text style={styles.timezoneRegion}>{option.region}</Text>
+                    <Text style={styles.timezoneId}>{option.id}</Text>
+                    <Text style={[styles.timezoneClock, selected && styles.timezoneClockSelected]}>
+                      {formatClockInTimezone(previewNow, option.id)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {filteredTimezones.length === 0 ? (
+              <Text style={styles.emptyTimezoneCopy}>No matching timezone. Try a city like London, India, or Tokyo.</Text>
+            ) : null}
+          </View>
+        ) : null}
         <Text style={styles.detail}>Daily tasks reset at 12:00 AM in the selected timezone.</Text>
       </View>
 
@@ -273,6 +307,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  timezonePickerButton: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 12,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.panel2,
+    padding: 12,
+  },
+  timezonePickerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  timezonePickerTitle: {
+    color: colors.muted,
+    fontFamily: fontFamily.black,
+    fontSize: 11,
+    letterSpacing: 1.1,
+  },
+  timezonePickerValue: {
+    marginTop: 5,
+    color: colors.text,
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+  },
+  timezonePickerAction: {
+    overflow: "hidden",
+    borderRadius: radii.pill,
+    backgroundColor: colors.accentTint,
+    color: colors.accentSoft,
+    fontFamily: fontFamily.black,
+    fontSize: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  timezonePickerPanel: {
+    marginTop: 10,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "rgba(255,255,255,0.025)",
+    padding: 10,
+  },
   timezoneGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -321,6 +402,13 @@ const styles = StyleSheet.create({
   },
   timezoneClockSelected: {
     color: colors.accentSoft,
+  },
+  emptyTimezoneCopy: {
+    marginTop: 10,
+    color: colors.muted,
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: 18,
   },
   input: {
     minHeight: 48,
