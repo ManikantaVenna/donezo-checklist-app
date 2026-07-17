@@ -1,20 +1,110 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { mockChecklistRepository } from "./src/data/mockChecklistRepository";
+import { supabaseChecklistRepository } from "./src/data/supabaseChecklistRepository";
+import { hasSupabaseEnv } from "./src/env";
+import { supabase } from "./src/lib/supabase";
+import { AuthScreen } from "./src/screens/AuthScreen";
+import { DailyScreen } from "./src/screens/DailyScreen";
+import { ProjectsScreen } from "./src/screens/ProjectsScreen";
+import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { TodayScreen } from "./src/screens/TodayScreen";
+import { ChecklistProvider } from "./src/state/ChecklistContext";
+import { useAppFonts } from "./src/theme/fonts";
+import { colors, fontFamily } from "./src/theme/tokens";
+
+type Tab = "today" | "daily" | "projects" | "settings";
+
+const tabs: Array<{ id: Tab; label: string }> = [
+  { id: "today", label: "Today" },
+  { id: "daily", label: "Daily" },
+  { id: "projects", label: "Projects" },
+  { id: "settings", label: "Settings" },
+];
 
 export default function App() {
+  const [fontsLoaded] = useAppFonts();
+  const [tab, setTab] = useState<Tab>("today");
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loading}>
+        <StatusBar style="light" />
+        <ActivityIndicator color={colors.green} />
+      </View>
+    );
+  }
+
+  if (hasSupabaseEnv() && !session) {
+    return <AuthScreen />;
+  }
+
+  const repository = hasSupabaseEnv() && session ? supabaseChecklistRepository : mockChecklistRepository;
+  const userId = session?.user.id ?? "demo-user";
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <ChecklistProvider repository={repository} userId={userId}>
+      <View style={styles.app}>
+        <StatusBar style="light" />
+        <View style={styles.screen}>{renderScreen(tab)}</View>
+        <View accessibilityRole="tablist" style={styles.nav}>
+          {tabs.map((item) => {
+            const selected = item.id === tab;
+            return (
+              <Pressable
+                key={item.id}
+                accessibilityLabel={`${item.label} tab`}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                onPress={() => setTab(item.id)}
+                style={({ pressed }) => [styles.tab, selected && styles.tabSelected, pressed && styles.tabPressed]}
+              >
+                <Text style={[styles.tabLabel, selected && styles.tabLabelSelected]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </ChecklistProvider>
   );
 }
 
+function renderScreen(tab: Tab) {
+  switch (tab) {
+    case "daily":
+      return <DailyScreen />;
+    case "projects":
+      return <ProjectsScreen />;
+    case "settings":
+      return <SettingsScreen />;
+    case "today":
+    default:
+      return <TodayScreen />;
+  }
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  app: { flex: 1, backgroundColor: colors.bg },
+  loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
+  screen: { flex: 1 },
+  nav: { flexDirection: "row", borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.panel, paddingHorizontal: 8, paddingVertical: 9 },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 38, borderRadius: 8 },
+  tabSelected: { backgroundColor: colors.panel3 },
+  tabPressed: { opacity: 0.72 },
+  tabLabel: { color: colors.muted, fontFamily: fontFamily.bold, fontSize: 11 },
+  tabLabelSelected: { color: colors.green },
 });
