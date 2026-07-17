@@ -16,7 +16,7 @@ Without Supabase env values, the app runs in demo mode with mock data.
 To connect the app to Supabase, copy `.env.example` to `.env`, replace both placeholder values with real project credentials, and apply `supabase/migrations/20260717000000_initial_schema.sql` to the project.
 
 - `EXPO_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 
 The migration enables row-level security and adds the checklist tables to Supabase Realtime so signed-in devices refresh automatically when tasks, projects, completions, timezone, or reminder settings change.
 
