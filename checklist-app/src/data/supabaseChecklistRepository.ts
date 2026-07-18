@@ -145,6 +145,7 @@ export const supabaseChecklistRepository: ChecklistRepository = {
 
   subscribeToChanges(userId, onChange) {
     const db = client();
+    let hasSubscribedOnce = false;
     const channel = db
       .channel(`checklist-sync:${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `user_id=eq.${userId}` }, onChange)
@@ -161,7 +162,22 @@ export const supabaseChecklistRepository: ChecklistRepository = {
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `id=eq.${userId}` }, onChange);
 
-    void channel.subscribe();
+    channel.subscribe((status, err) => {
+      if (status === "SUBSCRIBED") {
+        // Realtime drops events while disconnected, so reconcile once after an
+        // automatic rejoin. The initial join needs no refresh - the app has
+        // just fetched its snapshot.
+        if (hasSubscribedOnce) onChange();
+        hasSubscribedOnce = true;
+        return;
+      }
+
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        // Supabase retries the channel itself; creating a replacement here
+        // would risk duplicate subscriptions.
+        console.warn("Realtime sync interrupted; waiting for automatic rejoin.", err);
+      }
+    });
 
     return () => {
       void db.removeChannel(channel);
