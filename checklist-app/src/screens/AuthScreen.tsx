@@ -321,7 +321,7 @@ export function AuthScreen({ initialStep = "signin", recoveryEmail, onRecoveryCo
       const result = await supabase.auth.verifyOtp({
         email: value,
         token: normalizedCode,
-        type: "signup",
+        type: "email",
       });
 
       if (result.error) {
