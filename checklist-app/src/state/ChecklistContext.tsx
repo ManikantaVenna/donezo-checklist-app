@@ -45,6 +45,10 @@ export function ChecklistProvider({
   const refreshQueued = useRef(false);
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingMutations = useRef(0);
+  // Bumped when any mutation begins or settles. A snapshot fetched under one
+  // revision must not be applied under another: the fetch may have read the
+  // database before a write that has since happened committed.
+  const mutationRevision = useRef(0);
   const refreshQueuedAfterMutations = useRef(false);
 
   const runRefresh = useCallback(async () => {
@@ -56,17 +60,28 @@ export function ChecklistProvider({
 
     do {
       refreshQueued.current = false;
+      if (pendingMutations.current > 0) {
+        refreshQueuedAfterMutations.current = true;
+        return;
+      }
+
       const initialLoad = !hasLoadedSnapshot.current;
       const operation = (async () => {
         if (initialLoad) setLoading(true);
         setError(null);
+        const revisionAtFetchStart = mutationRevision.current;
         try {
           const nextSnapshot = await repository.getSnapshot(userId);
           if (pendingMutations.current > 0) {
-            // The snapshot may have been read before an in-flight write committed;
-            // applying it could revert optimistic state. Drop it and reconcile once
-            // every pending mutation has settled.
+            // A write is still in flight; reconcile once it settles.
             refreshQueuedAfterMutations.current = true;
+            return;
+          }
+          if (mutationRevision.current !== revisionAtFetchStart) {
+            // A mutation began (and possibly fully settled) while this fetch was
+            // in flight, so the data may predate that write. Discard it and loop
+            // around for one fresh reconciliation.
+            refreshQueued.current = true;
             return;
           }
           hasLoadedSnapshot.current = true;
@@ -95,10 +110,12 @@ export function ChecklistProvider({
 
   const beginMutation = useCallback(() => {
     pendingMutations.current += 1;
+    mutationRevision.current += 1;
   }, []);
 
   const endMutation = useCallback(() => {
     pendingMutations.current -= 1;
+    mutationRevision.current += 1;
     if (pendingMutations.current === 0 && refreshQueuedAfterMutations.current) {
       refreshQueuedAfterMutations.current = false;
       void runRefresh();
@@ -404,7 +421,13 @@ export function ChecklistProvider({
   useEffect(() => {
     if (!repository.subscribeToChanges) return undefined;
 
-    const unsubscribe = repository.subscribeToChanges(userId, () => {
+    const unsubscribe = repository.subscribeToChanges(userId, (reason) => {
+      // If the channel joined before the startup snapshot resolved, that fetch
+      // observes post-join state and the initial join needs no refresh. When the
+      // snapshot finished first, writes from other devices could land in the gap
+      // between the snapshot read and the join, so reconcile once.
+      if (reason === "initial-subscribe" && !hasLoadedSnapshot.current) return;
+
       if (realtimeRefreshTimeout.current) {
         clearTimeout(realtimeRefreshTimeout.current);
       }

@@ -14,9 +14,11 @@ export type CreateProjectInput = {
   name: string;
 };
 
+export type ChecklistChangeReason = "event" | "initial-subscribe" | "resubscribe";
+
 export type ChecklistRepository = {
   getSnapshot(userId: string): Promise<ChecklistSnapshot>;
-  subscribeToChanges?: (userId: string, onChange: () => void) => () => void;
+  subscribeToChanges?: (userId: string, onChange: (reason: ChecklistChangeReason) => void) => () => void;
   createTask(userId: string, input: CreateTaskInput): Promise<Task>;
   renameTask(userId: string, taskId: string, title: string): Promise<void>;
   archiveTask(userId: string, taskId: string): Promise<void>;

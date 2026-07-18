@@ -273,6 +273,237 @@ describe("ChecklistProvider refresh reconciliation", () => {
     expect(findTask(checklist, "task-1")?.completedAt).not.toBeNull();
     expect(getSnapshot).toHaveBeenCalledTimes(3);
   });
+
+  it("discards a stale snapshot even when the mutation fully settled during the fetch", async () => {
+    const staleFetch = deferred<ChecklistSnapshot>();
+    const getSnapshot = vi
+      .fn<ChecklistRepository["getSnapshot"]>()
+      .mockResolvedValueOnce(taskSnapshot)
+      .mockImplementationOnce(() => staleFetch.promise)
+      .mockResolvedValue({
+        ...taskSnapshot,
+        tasks: [{ ...quickTask, completedAt: "2026-07-18T16:00:00.000Z" }],
+      });
+    const repository = repositoryWith({ getSnapshot });
+    const checklist = await renderChecklist(repository);
+
+    let staleRefresh!: Promise<void>;
+    act(() => {
+      staleRefresh = checklist.value.refresh();
+    });
+
+    // The toggle starts AND completes while the stale fetch is still in flight.
+    await act(async () => {
+      await checklist.value.toggleTask(quickTask);
+    });
+    expect(findTask(checklist, "task-1")?.completedAt).not.toBeNull();
+
+    // The stale snapshot (read before the write committed) resolves afterwards:
+    // it must never be displayed, and one fresh reconciliation must run.
+    staleFetch.resolve(taskSnapshot);
+    await act(async () => {
+      await staleRefresh;
+    });
+
+    expect(findTask(checklist, "task-1")?.completedAt).not.toBeNull();
+    expect(getSnapshot).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("ChecklistProvider daily task races", () => {
+  const dailyTask: Task = { ...quickTask, id: "daily-1", type: "daily", title: "Morning stretch" };
+  const dailySnapshot: ChecklistSnapshot = { ...emptySnapshot, tasks: [dailyTask] };
+  const localDate = () => localDateKey(new Date(), TIMEZONE);
+  const isDailyComplete = (checklist: { value: ChecklistValue }) =>
+    checklist.value.snapshot!.dailyCompletions.some(
+      (entry) => entry.taskId === "daily-1" && entry.localDate === localDate(),
+    );
+
+  it("keeps an optimistic daily completion when a stale refresh resolves mid-toggle", async () => {
+    const staleFetch = deferred<ChecklistSnapshot>();
+    const write = deferred<void>();
+    const completedSnapshot: ChecklistSnapshot = {
+      ...dailySnapshot,
+      dailyCompletions: [
+        {
+          id: "completion-1",
+          userId: "user-1",
+          taskId: "daily-1",
+          localDate: localDateKey(new Date(), TIMEZONE),
+          completedAt: "2026-07-18T16:00:00.000Z",
+        },
+      ],
+    };
+    const getSnapshot = vi
+      .fn<ChecklistRepository["getSnapshot"]>()
+      .mockResolvedValueOnce(dailySnapshot)
+      .mockImplementationOnce(() => staleFetch.promise)
+      .mockResolvedValue(completedSnapshot);
+    const repository = repositoryWith({
+      getSnapshot,
+      setTaskComplete: vi.fn(() => write.promise),
+    });
+    const checklist = await renderChecklist(repository);
+
+    let staleRefresh!: Promise<void>;
+    act(() => {
+      staleRefresh = checklist.value.refresh();
+    });
+
+    let toggle!: Promise<void>;
+    act(() => {
+      toggle = checklist.value.toggleTask(dailyTask);
+    });
+    expect(isDailyComplete(checklist)).toBe(true);
+
+    staleFetch.resolve(dailySnapshot);
+    await act(async () => {
+      await staleRefresh;
+    });
+    expect(isDailyComplete(checklist)).toBe(true);
+
+    write.resolve();
+    await act(async () => {
+      await toggle;
+    });
+    expect(isDailyComplete(checklist)).toBe(true);
+  });
+
+  it("serializes rapid daily toggles with the latest intent winning", async () => {
+    const firstWrite = deferred<void>();
+    const secondWrite = deferred<void>();
+    const setTaskComplete = vi
+      .fn<ChecklistRepository["setTaskComplete"]>()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockImplementationOnce(() => secondWrite.promise);
+    const repository = repositoryWith({
+      getSnapshot: vi.fn(async () => dailySnapshot),
+      setTaskComplete,
+    });
+    const checklist = await renderChecklist(repository);
+
+    let firstToggle!: Promise<void>;
+    act(() => {
+      firstToggle = checklist.value.toggleTask(dailyTask);
+    });
+    expect(isDailyComplete(checklist)).toBe(true);
+
+    act(() => {
+      void checklist.value.toggleTask(dailyTask);
+    });
+    expect(isDailyComplete(checklist)).toBe(false);
+    expect(setTaskComplete).toHaveBeenCalledTimes(1);
+    expect(setTaskComplete.mock.calls[0]?.slice(3)).toEqual([true, "daily"]);
+
+    firstWrite.resolve();
+    secondWrite.resolve();
+    await act(async () => {
+      await firstToggle;
+    });
+
+    expect(setTaskComplete).toHaveBeenCalledTimes(2);
+    expect(setTaskComplete.mock.calls[1]?.slice(3)).toEqual([false, "daily"]);
+    expect(isDailyComplete(checklist)).toBe(false);
+  });
+
+  it("rolls a failed daily toggle back to the last server-confirmed state", async () => {
+    const write = deferred<void>();
+    const repository = repositoryWith({
+      getSnapshot: vi.fn(async () => dailySnapshot),
+      setTaskComplete: vi.fn(() => write.promise),
+    });
+    const checklist = await renderChecklist(repository);
+
+    let toggle!: Promise<void>;
+    act(() => {
+      toggle = checklist.value.toggleTask(dailyTask);
+    });
+    expect(isDailyComplete(checklist)).toBe(true);
+
+    write.reject(new Error("Network unavailable"));
+    await act(async () => {
+      await toggle;
+    });
+
+    expect(isDailyComplete(checklist)).toBe(false);
+    expect(checklist.value.error).toBe("Network unavailable");
+  });
+});
+
+describe("ChecklistProvider realtime subscription policy", () => {
+  it("refreshes on the initial subscribe only when the snapshot loaded before the channel joined", async () => {
+    vi.useFakeTimers();
+    try {
+      let notify: ((reason: "event" | "initial-subscribe" | "resubscribe") => void) | null = null;
+      const getSnapshot = vi.fn<ChecklistRepository["getSnapshot"]>().mockResolvedValue(taskSnapshot);
+      const repository = repositoryWith({
+        getSnapshot,
+        subscribeToChanges: (_userId, onChange) => {
+          notify = onChange;
+          return () => undefined;
+        },
+      });
+      const checklist = await renderChecklist(repository);
+      expect(checklist.value.snapshot).not.toBeNull();
+      expect(getSnapshot).toHaveBeenCalledTimes(1);
+
+      // Snapshot finished loading before the channel joined: the gap between the
+      // snapshot read and the join is real, so the join must reconcile once.
+      await act(async () => {
+        notify!("initial-subscribe");
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      expect(getSnapshot).toHaveBeenCalledTimes(2);
+
+      // A rejoin after a drop always reconciles.
+      await act(async () => {
+        notify!("resubscribe");
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      expect(getSnapshot).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips the initial-subscribe refresh while the first snapshot fetch is still in flight", async () => {
+    vi.useFakeTimers();
+    try {
+      let notify: ((reason: "event" | "initial-subscribe" | "resubscribe") => void) | null = null;
+      const initialFetch = deferred<ChecklistSnapshot>();
+      const getSnapshot = vi
+        .fn<ChecklistRepository["getSnapshot"]>()
+        .mockImplementationOnce(() => initialFetch.promise)
+        .mockResolvedValue(taskSnapshot);
+      const repository = repositoryWith({
+        getSnapshot,
+        subscribeToChanges: (_userId, onChange) => {
+          notify = onChange;
+          return () => undefined;
+        },
+      });
+      const checklist = await renderChecklist(repository);
+
+      // The channel joins before the initial snapshot resolves: the fetch will
+      // observe post-join state, so an extra startup refresh is unnecessary.
+      await act(async () => {
+        notify!("initial-subscribe");
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      expect(getSnapshot).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        initialFetch.resolve(taskSnapshot);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(checklist.value.snapshot).not.toBeNull();
+      expect(getSnapshot).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("ChecklistProvider toggle serialization", () => {
@@ -486,8 +717,8 @@ describe("ChecklistProvider optimistic archive and reorder", () => {
     expect(findTask(checklist, "task-2")?.sortOrder).toBe(1);
     expect(findTask(checklist, "task-1")?.sortOrder).toBe(2);
     expect(repository.updateTaskOrders).toHaveBeenCalledWith("user-1", [
-      { taskId: "task-2", sortOrder: 1 },
-      { taskId: "task-1", sortOrder: 2 },
+      { taskId: "task-2", sortOrder: 1, previousSortOrder: 2 },
+      { taskId: "task-1", sortOrder: 2, previousSortOrder: 1 },
     ]);
     expect(getSnapshot).toHaveBeenCalledTimes(1);
   });

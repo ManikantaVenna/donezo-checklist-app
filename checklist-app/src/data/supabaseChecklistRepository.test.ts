@@ -23,21 +23,50 @@ const fakeChannel = {
 
 const removeChannel = vi.fn();
 
+type UpdateCall = { taskId: string; sortOrder: number };
+
+const updateState: {
+  calls: UpdateCall[];
+  failOnCall: number | null;
+} = {
+  calls: [],
+  failOnCall: null,
+};
+
+function fakeTasksTable() {
+  return {
+    update: (values: { sort_order: number }) => ({
+      eq: (_userColumn: string, _userId: string) => ({
+        eq: async (_idColumn: string, taskId: string) => {
+          updateState.calls.push({ taskId, sortOrder: values.sort_order });
+          if (updateState.failOnCall === updateState.calls.length) {
+            return { error: new Error("write failed") };
+          }
+          return { error: null };
+        },
+      }),
+    }),
+  };
+}
+
 vi.mock("../lib/supabase", () => ({
   supabase: {
     channel: vi.fn(() => fakeChannel),
     removeChannel,
+    from: vi.fn(() => fakeTasksTable()),
   },
 }));
 
 afterEach(() => {
   channelState.handlers = [];
   channelState.statusCallback = null;
+  updateState.calls = [];
+  updateState.failOnCall = null;
   vi.clearAllMocks();
 });
 
 describe("supabaseChecklistRepository.subscribeToChanges", () => {
-  it("does not trigger a refresh for the initial subscription but reconciles after a rejoin", async () => {
+  it("reports the initial join, database events, and rejoins with distinct reasons", async () => {
     const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
     const onChange = vi.fn();
 
@@ -45,17 +74,16 @@ describe("supabaseChecklistRepository.subscribeToChanges", () => {
 
     expect(channelState.statusCallback).not.toBeNull();
 
-    // Initial connect: the app has just fetched its snapshot; no extra refresh.
     channelState.statusCallback!("SUBSCRIBED");
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenLastCalledWith("initial-subscribe");
 
-    // Database change events flow through.
     channelState.handlers[0]();
-    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith("event");
 
-    // A drop and automatic rejoin may have missed events: reconcile once.
+    // A drop and automatic rejoin may have missed events.
     channelState.statusCallback!("SUBSCRIBED");
-    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenLastCalledWith("resubscribe");
+    expect(onChange).toHaveBeenCalledTimes(3);
 
     unsubscribe();
     expect(removeChannel).toHaveBeenCalledWith(fakeChannel);
@@ -75,5 +103,40 @@ describe("supabaseChecklistRepository.subscribeToChanges", () => {
     expect(fakeChannel.subscribe).toHaveBeenCalledTimes(1);
 
     warn.mockRestore();
+  });
+});
+
+describe("supabaseChecklistRepository.updateTaskOrders", () => {
+  it("writes sequentially and compensates already-applied rows when a later write fails", async () => {
+    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+    updateState.failOnCall = 2;
+
+    await expect(
+      supabaseChecklistRepository.updateTaskOrders("user-1", [
+        { taskId: "task-a", sortOrder: 2, previousSortOrder: 1 },
+        { taskId: "task-b", sortOrder: 1, previousSortOrder: 2 },
+      ]),
+    ).rejects.toThrow("write failed");
+
+    expect(updateState.calls).toEqual([
+      { taskId: "task-a", sortOrder: 2 },
+      { taskId: "task-b", sortOrder: 1 },
+      // Compensation restores the row that was already written.
+      { taskId: "task-a", sortOrder: 1 },
+    ]);
+  });
+
+  it("applies all rows in order when every write succeeds", async () => {
+    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+
+    await supabaseChecklistRepository.updateTaskOrders("user-1", [
+      { taskId: "task-a", sortOrder: 2, previousSortOrder: 1 },
+      { taskId: "task-b", sortOrder: 1, previousSortOrder: 2 },
+    ]);
+
+    expect(updateState.calls).toEqual([
+      { taskId: "task-a", sortOrder: 2 },
+      { taskId: "task-b", sortOrder: 1 },
+    ]);
   });
 });

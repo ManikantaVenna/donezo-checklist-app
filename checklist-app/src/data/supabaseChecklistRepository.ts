@@ -146,28 +146,30 @@ export const supabaseChecklistRepository: ChecklistRepository = {
   subscribeToChanges(userId, onChange) {
     const db = client();
     let hasSubscribedOnce = false;
+    const onEvent = () => onChange("event");
     const channel = db
       .channel(`checklist-sync:${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `user_id=eq.${userId}` }, onChange)
-      .on("postgres_changes", { event: "*", schema: "public", table: "projects", filter: `user_id=eq.${userId}` }, onChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `user_id=eq.${userId}` }, onEvent)
+      .on("postgres_changes", { event: "*", schema: "public", table: "projects", filter: `user_id=eq.${userId}` }, onEvent)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "daily_completions", filter: `user_id=eq.${userId}` },
-        onChange,
+        onEvent,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "reminder_preferences", filter: `user_id=eq.${userId}` },
-        onChange,
+        onEvent,
       )
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `id=eq.${userId}` }, onChange);
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `id=eq.${userId}` }, onEvent);
 
     channel.subscribe((status, err) => {
       if (status === "SUBSCRIBED") {
-        // Realtime drops events while disconnected, so reconcile once after an
-        // automatic rejoin. The initial join needs no refresh - the app has
-        // just fetched its snapshot.
-        if (hasSubscribedOnce) onChange();
+        // Realtime drops events while disconnected, so every join may have
+        // missed writes. The caller decides whether the initial join needs a
+        // reconciling refresh (it does only when the startup snapshot finished
+        // loading before the channel joined).
+        onChange(hasSubscribedOnce ? "resubscribe" : "initial-subscribe");
         hasSubscribedOnce = true;
         return;
       }
@@ -244,15 +246,34 @@ export const supabaseChecklistRepository: ChecklistRepository = {
     if (changes.length === 0) return;
 
     const db = client();
-    // Note: each row is a separate PostgREST update, so a mid-flight failure can
-    // apply only part of the swap. Callers revert optimistically and reconcile
-    // with a refresh; sort ties fall back to created_at ordering.
-    const results = await Promise.all(
-      changes.map((change) =>
-        db.from("tasks").update({ sort_order: change.sortOrder }).eq("user_id", userId).eq("id", change.taskId),
-      ),
-    );
-    results.forEach(throwIfError);
+    // Each row is a separate PostgREST update; there is no transaction without a
+    // database function. Writes run sequentially so a failure leaves a known
+    // prefix applied, and that prefix is then compensated back to its previous
+    // order (best effort - if compensation also fails, the caller's revert plus
+    // reconciling refresh converges the UI on whatever the server holds).
+    const applied: typeof changes = [];
+    try {
+      for (const change of changes) {
+        const result = await db
+          .from("tasks")
+          .update({ sort_order: change.sortOrder })
+          .eq("user_id", userId)
+          .eq("id", change.taskId);
+        throwIfError(result);
+        applied.push(change);
+      }
+    } catch (err) {
+      await Promise.all(
+        applied.map((change) =>
+          db
+            .from("tasks")
+            .update({ sort_order: change.previousSortOrder })
+            .eq("user_id", userId)
+            .eq("id", change.taskId),
+        ),
+      ).catch(() => undefined);
+      throw err;
+    }
   },
 
   async setTaskComplete(userId, taskId, localDate, complete, taskType) {

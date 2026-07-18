@@ -6,6 +6,7 @@ export type MoveDirection = "up" | "down";
 export type TaskOrderChange = {
   taskId: string;
   sortOrder: number;
+  previousSortOrder: number;
 };
 
 function isSibling(task: Task, candidate: Task): boolean {
@@ -16,8 +17,10 @@ function isSibling(task: Task, candidate: Task): boolean {
 
 /**
  * Plans a one-step reorder as the minimal set of sort-order writes: the moved
- * row and its displaced neighbor, or a single row when both share the same
- * sort order and only a nudge is needed to break the tie.
+ * row and its displaced neighbor when all sibling sort orders are distinct.
+ * When any siblings share a sort order (a legacy state left by earlier rapid
+ * adds), the tie-break by created_at makes value swaps unreliable, so the whole
+ * group is renumbered to make every position explicit.
  */
 export function planMoveTask(tasks: Task[], taskId: string, direction: MoveDirection): TaskOrderChange[] | null {
   const task = tasks.find((candidate) => candidate.id === taskId && !candidate.isArchived);
@@ -35,17 +38,26 @@ export function planMoveTask(tasks: Task[], taskId: string, direction: MoveDirec
   }
 
   const neighbor = siblings[targetIndex];
+  const hasDuplicateOrders = new Set(siblings.map((candidate) => candidate.sortOrder)).size !== siblings.length;
 
-  if (task.sortOrder === neighbor.sortOrder) {
-    // Equal sort orders fall back to created-at ordering, so swapping the equal
-    // values would change nothing; nudge one row past the tie instead.
-    return direction === "up"
-      ? [{ taskId: neighbor.id, sortOrder: neighbor.sortOrder + 1 }]
-      : [{ taskId: task.id, sortOrder: task.sortOrder + 1 }];
+  if (!hasDuplicateOrders) {
+    return [
+      { taskId: task.id, sortOrder: neighbor.sortOrder, previousSortOrder: task.sortOrder },
+      { taskId: neighbor.id, sortOrder: task.sortOrder, previousSortOrder: neighbor.sortOrder },
+    ];
   }
 
-  return [
-    { taskId: task.id, sortOrder: neighbor.sortOrder },
-    { taskId: neighbor.id, sortOrder: task.sortOrder },
-  ];
+  const reordered = [...siblings];
+  const [movedTask] = reordered.splice(currentIndex, 1);
+  reordered.splice(targetIndex, 0, movedTask);
+
+  const changes = reordered
+    .map((candidate, index) => ({
+      taskId: candidate.id,
+      sortOrder: index + 1,
+      previousSortOrder: candidate.sortOrder,
+    }))
+    .filter((change) => change.sortOrder !== change.previousSortOrder);
+
+  return changes.length > 0 ? changes : null;
 }

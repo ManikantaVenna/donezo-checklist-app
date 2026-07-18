@@ -19,8 +19,8 @@ describe("MockChecklistRepository task ordering", () => {
     const userId = "demo-user";
 
     await repository.updateTaskOrders(userId, [
-      { taskId: "daily-1", sortOrder: 2 },
-      { taskId: "daily-2", sortOrder: 1 },
+      { taskId: "daily-1", sortOrder: 2, previousSortOrder: 1 },
+      { taskId: "daily-2", sortOrder: 1, previousSortOrder: 2 },
     ]);
 
     const snapshot = await repository.getSnapshot(userId);
