@@ -48,7 +48,7 @@ export function DailyScreen() {
       ) : (
         routines.map((task) => (
           <View key={task.id} style={styles.routineRow}>
-            <Text numberOfLines={1} style={styles.routineName}>{task.title}</Text>
+            <Text style={styles.routineName}>{task.title}</Text>
             <Text style={styles.streak}>{getDailyStreak(snapshot, task.id, todayLocalDate)}d</Text>
           </View>
         ))

@@ -40,7 +40,7 @@ export function TaskRow({
           {complete ? <Text style={styles.checkText}>✓</Text> : null}
         </View>
         <View style={styles.copy}>
-          <Text numberOfLines={1} style={[styles.title, complete && styles.done]}>
+          <Text style={[styles.title, complete && styles.done]}>
             {task.title}
           </Text>
           {meta ? (
