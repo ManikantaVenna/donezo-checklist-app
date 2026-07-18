@@ -1,6 +1,5 @@
-import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "./checklistRepository";
+import type { ChecklistRepository, CreateProjectInput, CreateTaskInput } from "./checklistRepository";
 import type { DailyCompletion, Project, ReminderPreferences, Task, TaskType } from "../domain/types";
-import { sortedCopy } from "../domain/sorting";
 import { supabase } from "../lib/supabase";
 
 type ProfileRow = {
@@ -109,10 +108,6 @@ function mapReminderPreferences(row: ReminderPreferenceRow): ReminderPreferences
     enabled: row.enabled,
     reminderTime: row.reminder_time.slice(0, 5),
   };
-}
-
-function sortByManualOrder<T extends { sort_order: number; created_at: string }>(rows: T[]): T[] {
-  return sortedCopy(rows, (first, second) => first.sort_order - second.sort_order || first.created_at.localeCompare(second.created_at));
 }
 
 export const supabaseChecklistRepository: ChecklistRepository = {
@@ -229,53 +224,19 @@ export const supabaseChecklistRepository: ChecklistRepository = {
     throwIfError({ error });
   },
 
-  async moveTask(userId, taskId, direction: MoveDirection) {
+  async updateTaskOrders(userId, changes) {
+    if (changes.length === 0) return;
+
     const db = client();
-    const taskResult = await db
-      .from("tasks")
-      .select("id,user_id,project_id,type,sort_order,is_archived,created_at,updated_at,title,completed_at")
-      .eq("user_id", userId)
-      .eq("id", taskId)
-      .eq("is_archived", false)
-      .single();
-
-    throwIfError(taskResult);
-
-    const task = requireData(taskResult.data as TaskRow | null, "Task not found.");
-    let siblingsQuery = db
-      .from("tasks")
-      .select("id,user_id,project_id,type,sort_order,is_archived,created_at,updated_at,title,completed_at")
-      .eq("user_id", userId)
-      .eq("is_archived", false);
-
-    if (task.project_id) {
-      siblingsQuery = siblingsQuery.eq("project_id", task.project_id);
-    } else {
-      siblingsQuery = siblingsQuery.is("project_id", null).eq("type", task.type);
-    }
-
-    const siblingsResult = await siblingsQuery.order("sort_order").order("created_at");
-    throwIfError(siblingsResult);
-
-    const siblings = sortByManualOrder((siblingsResult.data ?? []) as TaskRow[]);
-    const currentIndex = siblings.findIndex((row) => row.id === taskId);
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
-      return;
-    }
-
-    const reordered = [...siblings];
-    const [movedTask] = reordered.splice(currentIndex, 1);
-    reordered.splice(targetIndex, 0, movedTask);
-
-    await Promise.all(
-      reordered.map((row, index) =>
-        db.from("tasks").update({ sort_order: index + 1 }).eq("user_id", userId).eq("id", row.id),
+    // Note: each row is a separate PostgREST update, so a mid-flight failure can
+    // apply only part of the swap. Callers revert optimistically and reconcile
+    // with a refresh; sort ties fall back to created_at ordering.
+    const results = await Promise.all(
+      changes.map((change) =>
+        db.from("tasks").update({ sort_order: change.sortOrder }).eq("user_id", userId).eq("id", change.taskId),
       ),
-    ).then((results) => {
-      results.forEach(throwIfError);
-    });
+    );
+    results.forEach(throwIfError);
   },
 
   async setTaskComplete(userId, taskId, localDate, complete, taskType) {

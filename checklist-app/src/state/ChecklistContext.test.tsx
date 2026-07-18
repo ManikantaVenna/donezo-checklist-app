@@ -59,7 +59,7 @@ function repositoryWith(overrides: Partial<ChecklistRepository> = {}): Checklist
     createTask: vi.fn(async () => quickTask),
     renameTask: vi.fn(async () => undefined),
     archiveTask: vi.fn(async () => undefined),
-    moveTask: vi.fn(async () => undefined),
+    updateTaskOrders: vi.fn(async () => undefined),
     setTaskComplete: vi.fn(async () => undefined),
     createProject: vi.fn(async () => undefined),
     renameProject: vi.fn(async () => undefined),
@@ -175,7 +175,7 @@ describe("ChecklistProvider task creation", () => {
 
     expect(repository.setTaskComplete).not.toHaveBeenCalled();
     expect(repository.archiveTask).not.toHaveBeenCalled();
-    expect(repository.moveTask).not.toHaveBeenCalled();
+    expect(repository.updateTaskOrders).not.toHaveBeenCalled();
     expect(checklist.value.error).toBeNull();
 
     insert.resolve({
@@ -370,6 +370,37 @@ describe("ChecklistProvider toggle serialization", () => {
     expect(findTask(checklist, "task-1")?.completedAt).not.toBeNull();
   });
 
+  it("gives rapid optimistic adds distinct sort orders", async () => {
+    const firstInsert = deferred<Task>();
+    const secondInsert = deferred<Task>();
+    const createTask = vi
+      .fn<ChecklistRepository["createTask"]>()
+      .mockImplementationOnce(() => firstInsert.promise)
+      .mockImplementationOnce(() => secondInsert.promise);
+    const repository = repositoryWith({ createTask });
+    const checklist = await renderChecklist(repository);
+
+    let firstSubmit!: Promise<void>;
+    let secondSubmit!: Promise<void>;
+    act(() => {
+      firstSubmit = checklist.value.createTask({ title: "First", type: "quick" });
+    });
+    act(() => {
+      secondSubmit = checklist.value.createTask({ title: "Second", type: "quick" });
+    });
+
+    const sortOrders = checklist.value.snapshot!.tasks.map((task) => task.sortOrder);
+    expect(sortOrders).toEqual([1, 2]);
+    expect(createTask.mock.calls[0]?.[1]?.sortOrder).toBe(1);
+    expect(createTask.mock.calls[1]?.[1]?.sortOrder).toBe(2);
+
+    firstInsert.resolve({ ...checklist.value.snapshot!.tasks[0], id: "saved-1" });
+    secondInsert.resolve({ ...checklist.value.snapshot!.tasks[1], id: "saved-2" });
+    await act(async () => {
+      await Promise.all([firstSubmit, secondSubmit]);
+    });
+  });
+
   it("re-syncs the checkbox to the last known server state when a write fails", async () => {
     const write = deferred<void>();
     const getSnapshot = vi.fn<ChecklistRepository["getSnapshot"]>().mockResolvedValue(taskSnapshot);
@@ -391,6 +422,107 @@ describe("ChecklistProvider toggle serialization", () => {
     });
 
     expect(findTask(checklist, "task-1")?.completedAt).toBeNull();
+    expect(checklist.value.error).toBe("Network unavailable");
+  });
+});
+
+describe("ChecklistProvider optimistic archive and reorder", () => {
+  it("removes a task immediately and restores it when the archive fails", async () => {
+    const archive = deferred<void>();
+    const getSnapshot = vi.fn<ChecklistRepository["getSnapshot"]>().mockResolvedValue(taskSnapshot);
+    const repository = repositoryWith({
+      getSnapshot,
+      archiveTask: vi.fn(() => archive.promise),
+    });
+    const checklist = await renderChecklist(repository);
+
+    let removal!: Promise<void>;
+    act(() => {
+      removal = checklist.value.archiveTask("task-1");
+    });
+    expect(findTask(checklist, "task-1")).toBeUndefined();
+
+    archive.reject(new Error("Network unavailable"));
+    await act(async () => {
+      await removal;
+    });
+
+    expect(findTask(checklist, "task-1")).toBeDefined();
+    expect(checklist.value.error).toBe("Network unavailable");
+  });
+
+  it("removes a task without a follow-up snapshot fetch when the archive succeeds", async () => {
+    const getSnapshot = vi.fn<ChecklistRepository["getSnapshot"]>().mockResolvedValue(taskSnapshot);
+    const repository = repositoryWith({ getSnapshot });
+    const checklist = await renderChecklist(repository);
+
+    await act(async () => {
+      await checklist.value.archiveTask("task-1");
+    });
+
+    expect(findTask(checklist, "task-1")).toBeUndefined();
+    expect(repository.archiveTask).toHaveBeenCalledWith("user-1", "task-1");
+    expect(getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("reorders instantly and writes only the two affected rows", async () => {
+    const secondTask: Task = {
+      ...quickTask,
+      id: "task-2",
+      title: "Second task",
+      sortOrder: 2,
+      createdAt: "2026-07-17T13:00:00.000Z",
+    };
+    const getSnapshot = vi
+      .fn<ChecklistRepository["getSnapshot"]>()
+      .mockResolvedValue({ ...taskSnapshot, tasks: [quickTask, secondTask] });
+    const repository = repositoryWith({ getSnapshot });
+    const checklist = await renderChecklist(repository);
+
+    await act(async () => {
+      await checklist.value.moveTask("task-2", "up");
+    });
+
+    expect(findTask(checklist, "task-2")?.sortOrder).toBe(1);
+    expect(findTask(checklist, "task-1")?.sortOrder).toBe(2);
+    expect(repository.updateTaskOrders).toHaveBeenCalledWith("user-1", [
+      { taskId: "task-2", sortOrder: 1 },
+      { taskId: "task-1", sortOrder: 2 },
+    ]);
+    expect(getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores the previous order when the reorder write fails", async () => {
+    const write = deferred<void>();
+    const secondTask: Task = {
+      ...quickTask,
+      id: "task-2",
+      title: "Second task",
+      sortOrder: 2,
+      createdAt: "2026-07-17T13:00:00.000Z",
+    };
+    const getSnapshot = vi
+      .fn<ChecklistRepository["getSnapshot"]>()
+      .mockResolvedValue({ ...taskSnapshot, tasks: [quickTask, secondTask] });
+    const repository = repositoryWith({
+      getSnapshot,
+      updateTaskOrders: vi.fn(() => write.promise),
+    });
+    const checklist = await renderChecklist(repository);
+
+    let move!: Promise<void>;
+    act(() => {
+      move = checklist.value.moveTask("task-2", "up");
+    });
+    expect(findTask(checklist, "task-2")?.sortOrder).toBe(1);
+
+    write.reject(new Error("Network unavailable"));
+    await act(async () => {
+      await move;
+    });
+
+    expect(findTask(checklist, "task-2")?.sortOrder).toBe(2);
+    expect(findTask(checklist, "task-1")?.sortOrder).toBe(1);
     expect(checklist.value.error).toBe("Network unavailable");
   });
 });

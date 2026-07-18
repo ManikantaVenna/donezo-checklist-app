@@ -14,37 +14,19 @@ describe("MockChecklistRepository task ordering", () => {
     expect(task).toMatchObject({ title: "Fast task", type: "quick", sortOrder: 12 });
   });
 
-  it("moves tasks up and down within their own list", async () => {
+  it("applies bulk sort-order updates for the swapped rows", async () => {
     const repository = new MockChecklistRepository();
     const userId = "demo-user";
 
-    await repository.createTask(userId, { title: "First quick task", type: "quick" });
-    await repository.createTask(userId, { title: "Second quick task", type: "quick" });
-
-    let snapshot = await repository.getSnapshot(userId);
-    const quickTasks = snapshot.tasks.filter((task) => task.type === "quick");
-    const first = quickTasks.find((task) => task.title === "First quick task");
-    const second = quickTasks.find((task) => task.title === "Second quick task");
-
-    expect(first).toBeDefined();
-    expect(second).toBeDefined();
-
-    await repository.moveTask(userId, second!.id, "up");
-
-    snapshot = await repository.getSnapshot(userId);
-    expect(snapshot.tasks.filter((task) => task.type === "quick").map((task) => task.title)).toEqual([
-      "Send invoice",
-      "Second quick task",
-      "First quick task",
+    await repository.updateTaskOrders(userId, [
+      { taskId: "daily-1", sortOrder: 2 },
+      { taskId: "daily-2", sortOrder: 1 },
     ]);
 
-    await repository.moveTask(userId, second!.id, "down");
-
-    snapshot = await repository.getSnapshot(userId);
-    expect(snapshot.tasks.filter((task) => task.type === "quick").map((task) => task.title)).toEqual([
-      "Send invoice",
-      "First quick task",
-      "Second quick task",
+    const snapshot = await repository.getSnapshot(userId);
+    expect(snapshot.tasks.filter((task) => task.type === "daily").map((task) => task.id)).toEqual([
+      "daily-2",
+      "daily-1",
     ]);
   });
 });

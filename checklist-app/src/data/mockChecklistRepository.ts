@@ -1,6 +1,5 @@
-import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "./checklistRepository";
+import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, TaskOrderChange } from "./checklistRepository";
 import type { ChecklistSnapshot, DailyCompletion, Project, ReminderPreferences, Task, TaskType } from "../domain/types";
-import { sortedCopy } from "../domain/sorting";
 
 const DEMO_USER_ID = "demo-user";
 const INITIAL_NOW = "2026-07-17T12:00:00.000Z";
@@ -32,18 +31,6 @@ function createDefaultReminderPreferences(userId: string): ReminderPreferences {
 
 function getNextSortOrder(items: Array<{ sortOrder: number }>): number {
   return items.reduce((highest, item) => Math.max(highest, item.sortOrder), 0) + 1;
-}
-
-function sameTaskList(task: Task, candidate: Task): boolean {
-  if (task.projectId !== null) {
-    return candidate.projectId === task.projectId;
-  }
-
-  return candidate.projectId === null && candidate.type === task.type;
-}
-
-function sortByManualOrder<T extends { sortOrder: number; createdAt: string }>(items: T[]): T[] {
-  return sortedCopy(items, (first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
 }
 
 export class MockChecklistRepository implements ChecklistRepository {
@@ -211,31 +198,18 @@ export class MockChecklistRepository implements ChecklistRepository {
     task.updatedAt = new Date().toISOString();
   }
 
-  async moveTask(userId: string, taskId: string, direction: MoveDirection): Promise<void> {
-    const task = this.tasks.find((candidate) => candidate.userId === userId && candidate.id === taskId && !candidate.isArchived);
-    if (!task) {
-      return;
-    }
-
-    const siblings = sortByManualOrder(
-      this.tasks.filter((candidate) => candidate.userId === userId && !candidate.isArchived && sameTaskList(task, candidate)),
-    );
-    const currentIndex = siblings.findIndex((candidate) => candidate.id === taskId);
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
-      return;
-    }
-
-    const reordered = [...siblings];
-    const [movedTask] = reordered.splice(currentIndex, 1);
-    reordered.splice(targetIndex, 0, movedTask);
-
+  async updateTaskOrders(userId: string, changes: TaskOrderChange[]): Promise<void> {
     const now = new Date().toISOString();
-    reordered.forEach((candidate, index) => {
-      candidate.sortOrder = index + 1;
-      candidate.updatedAt = now;
-    });
+
+    for (const change of changes) {
+      const task = this.tasks.find((candidate) => candidate.userId === userId && candidate.id === change.taskId);
+      if (!task) {
+        continue;
+      }
+
+      task.sortOrder = change.sortOrder;
+      task.updatedAt = now;
+    }
   }
 
   async setTaskComplete(

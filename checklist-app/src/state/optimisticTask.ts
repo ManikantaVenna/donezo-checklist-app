@@ -11,20 +11,26 @@ export function isPendingTaskId(taskId: string): boolean {
   return taskId.startsWith(PENDING_TASK_ID_PREFIX);
 }
 
-export function createOptimisticTask(
-  snapshot: ChecklistSnapshot,
-  userId: string,
-  input: CreateTaskInput,
-  id: string,
-  now: string,
-): Task {
+export function nextTaskSortOrder(snapshot: ChecklistSnapshot, input: CreateTaskInput): number {
   const projectId = input.type === "project" ? (input.projectId ?? null) : null;
   const siblings = snapshot.tasks.filter((task) => {
     if (task.isArchived) return false;
     if (input.type === "project") return task.projectId === projectId;
     return task.projectId === null && task.type === input.type;
   });
-  const sortOrder = siblings.reduce((highest, task) => Math.max(highest, task.sortOrder), 0) + 1;
+
+  return siblings.reduce((highest, task) => Math.max(highest, task.sortOrder), 0) + 1;
+}
+
+export function createOptimisticTask(
+  snapshot: ChecklistSnapshot,
+  userId: string,
+  input: CreateTaskInput,
+  id: string,
+  now: string,
+  sortOrder = nextTaskSortOrder(snapshot, input),
+): Task {
+  const projectId = input.type === "project" ? (input.projectId ?? null) : null;
 
   return {
     id,

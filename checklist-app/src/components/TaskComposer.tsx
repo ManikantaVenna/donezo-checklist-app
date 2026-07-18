@@ -32,24 +32,20 @@ export function TaskComposer({
 }: TaskComposerProps) {
   const [title, setTitle] = useState("");
   const [taskType, setTaskType] = useState<TaskType>(defaultType);
-  const [busy, setBusy] = useState(false);
   const trimmedTitle = title.trim();
 
-  const submitTask = async () => {
-    if (!trimmedTitle || busy) return;
+  const submitTask = () => {
+    if (!trimmedTitle) return;
 
     const submittedTitle = trimmedTitle;
     setTitle("");
-    setBusy(true);
-    try {
-      await onSubmit({
-        title: submittedTitle,
-        type: taskType,
-        projectId: taskType === "project" ? projectId : null,
-      });
-    } finally {
-      setBusy(false);
-    }
+    // The checklist updates optimistically, so the composer stays usable while
+    // the insert is in flight; failures surface through the shared error state.
+    void onSubmit({
+      title: submittedTitle,
+      type: taskType,
+      projectId: taskType === "project" ? projectId : null,
+    }).catch(() => undefined);
   };
 
   return (
@@ -66,7 +62,7 @@ export function TaskComposer({
           style={styles.input}
           value={title}
         />
-        <AppButton label={busy ? "Adding..." : "Add"} onPress={submitTask} disabled={!trimmedTitle || busy} />
+        <AppButton label="Add" onPress={submitTask} disabled={!trimmedTitle} />
       </View>
       {types.length > 1 ? (
         <View accessibilityRole="radiogroup" style={styles.segmented}>

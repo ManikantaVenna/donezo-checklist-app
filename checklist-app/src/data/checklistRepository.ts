@@ -1,6 +1,7 @@
 import type { ChecklistSnapshot, Task, TaskType } from "../domain/types";
+import type { TaskOrderChange } from "../domain/ordering";
 
-export type MoveDirection = "up" | "down";
+export type { MoveDirection, TaskOrderChange } from "../domain/ordering";
 
 export type CreateTaskInput = {
   title: string;
@@ -19,7 +20,7 @@ export type ChecklistRepository = {
   createTask(userId: string, input: CreateTaskInput): Promise<Task>;
   renameTask(userId: string, taskId: string, title: string): Promise<void>;
   archiveTask(userId: string, taskId: string): Promise<void>;
-  moveTask(userId: string, taskId: string, direction: MoveDirection): Promise<void>;
+  updateTaskOrders(userId: string, changes: TaskOrderChange[]): Promise<void>;
   setTaskComplete(userId: string, taskId: string, localDate: string, complete: boolean, taskType: TaskType): Promise<void>;
   createProject(userId: string, input: CreateProjectInput): Promise<void>;
   renameProject(userId: string, projectId: string, name: string): Promise<void>;

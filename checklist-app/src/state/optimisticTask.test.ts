@@ -58,6 +58,19 @@ describe("createOptimisticTask", () => {
     expect(task.sortOrder).toBe(4);
     expect(task.projectId).toBe("project-a");
   });
+
+  it("accepts an explicit sort order for adds racing an unsettled insert", () => {
+    const task = createOptimisticTask(
+      snapshot,
+      "user-1",
+      { title: "Racing add", type: "quick" },
+      "pending-3",
+      "2026-07-18T13:00:00.000Z",
+      6,
+    );
+
+    expect(task.sortOrder).toBe(6);
+  });
 });
 
 describe("pending task ids", () => {

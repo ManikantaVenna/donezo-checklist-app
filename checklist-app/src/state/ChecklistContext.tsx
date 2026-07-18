@@ -4,8 +4,9 @@ import type { ChecklistSnapshot, Task } from "../domain/types";
 import { calculateCurrentStreak, getNextLocalMidnight, isCompletedOnDate, localDateKey } from "../domain/dates";
 import { DEFAULT_TIMEZONE } from "../domain/timezones";
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "../data/checklistRepository";
+import { planMoveTask } from "../domain/ordering";
 import { scheduleDailyReminder } from "../lib/reminders";
-import { createOptimisticTask, createPendingTaskId, isPendingTaskId } from "./optimisticTask";
+import { createOptimisticTask, createPendingTaskId, isPendingTaskId, nextTaskSortOrder } from "./optimisticTask";
 
 type ChecklistContextValue = {
   snapshot: ChecklistSnapshot | null;
@@ -38,6 +39,7 @@ export function ChecklistProvider({
   );
   const toggleRuns = useRef(new Map<string, { desired: boolean; localDate: string }>());
   const pendingCreateSequence = useRef(0);
+  const pendingInserts = useRef(new Map<string, { count: number; highestSortOrder: number }>());
   const hasLoadedSnapshot = useRef(false);
   const refreshPromise = useRef<Promise<void> | null>(null);
   const refreshQueued = useRef(false);
@@ -108,12 +110,25 @@ export function ChecklistProvider({
       if (!input.title.trim() || !snapshot) return;
 
       const optimisticId = createPendingTaskId(++pendingCreateSequence.current);
+      // Reserve a sort order above any insert that is still in flight, so rapid
+      // adds never collide even when this callback closed over a stale snapshot.
+      const groupKey = input.type === "project" ? `project:${input.projectId ?? ""}` : `list:${input.type}`;
+      const insertGroup = pendingInserts.current.get(groupKey);
+      const sortOrder = Math.max(
+        nextTaskSortOrder(snapshot, input),
+        insertGroup ? insertGroup.highestSortOrder + 1 : 0,
+      );
+      pendingInserts.current.set(groupKey, {
+        count: (insertGroup?.count ?? 0) + 1,
+        highestSortOrder: sortOrder,
+      });
       const optimisticTask = createOptimisticTask(
         snapshot,
         userId,
         input,
         optimisticId,
         new Date().toISOString(),
+        sortOrder,
       );
       setError(null);
       setSnapshot((previous) =>
@@ -147,6 +162,14 @@ export function ChecklistProvider({
         );
         setError(err instanceof Error ? err.message : "Unable to create task.");
       } finally {
+        const group = pendingInserts.current.get(groupKey);
+        if (group) {
+          if (group.count <= 1) {
+            pendingInserts.current.delete(groupKey);
+          } else {
+            group.count -= 1;
+          }
+        }
         endMutation();
       }
     },
@@ -155,38 +178,70 @@ export function ChecklistProvider({
 
   const archiveTask = useCallback(
     async (taskId: string) => {
-      if (isPendingTaskId(taskId)) return;
+      if (isPendingTaskId(taskId) || !snapshot) return;
+
+      const archivedTask = snapshot.tasks.find((task) => task.id === taskId);
+      if (!archivedTask) return;
+
+      setSnapshot((previous) =>
+        previous ? { ...previous, tasks: previous.tasks.filter((task) => task.id !== taskId) } : previous,
+      );
 
       beginMutation();
       try {
         await repository.archiveTask(userId, taskId);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to delete task.");
-        return;
-      } finally {
         endMutation();
+      } catch (err) {
+        setSnapshot((previous) =>
+          previous ? { ...previous, tasks: [...previous.tasks, archivedTask] } : previous,
+        );
+        refreshQueuedAfterMutations.current = true;
+        endMutation();
+        setError(err instanceof Error ? err.message : "Unable to delete task.");
       }
-      await refresh();
     },
-    [beginMutation, endMutation, refresh, repository, userId],
+    [beginMutation, endMutation, repository, snapshot, userId],
   );
 
   const moveTask = useCallback(
     async (taskId: string, direction: MoveDirection) => {
-      if (isPendingTaskId(taskId)) return;
+      if (isPendingTaskId(taskId) || !snapshot) return;
+
+      const changes = planMoveTask(snapshot.tasks, taskId, direction);
+      if (!changes) return;
+
+      const nextOrders = new Map(changes.map((change) => [change.taskId, change.sortOrder]));
+      const previousOrders = new Map(
+        snapshot.tasks.filter((task) => nextOrders.has(task.id)).map((task) => [task.id, task.sortOrder]),
+      );
+      const applyOrders = (orders: Map<string, number>) => {
+        setSnapshot((previous) =>
+          previous
+            ? {
+                ...previous,
+                tasks: previous.tasks.map((task) => {
+                  const sortOrder = orders.get(task.id);
+                  return sortOrder === undefined ? task : { ...task, sortOrder };
+                }),
+              }
+            : previous,
+        );
+      };
+
+      applyOrders(nextOrders);
 
       beginMutation();
       try {
-        await repository.moveTask(userId, taskId, direction);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to reorder task.");
-        return;
-      } finally {
+        await repository.updateTaskOrders(userId, changes);
         endMutation();
+      } catch (err) {
+        applyOrders(previousOrders);
+        refreshQueuedAfterMutations.current = true;
+        endMutation();
+        setError(err instanceof Error ? err.message : "Unable to reorder task.");
       }
-      await refresh();
     },
-    [beginMutation, endMutation, refresh, repository, userId],
+    [beginMutation, endMutation, repository, snapshot, userId],
   );
 
   const createProject = useCallback(
