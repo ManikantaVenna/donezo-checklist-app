@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { mockChecklistRepository } from "./src/data/mockChecklistRepository";
 import { supabaseChecklistRepository } from "./src/data/supabaseChecklistRepository";
 import { hasSupabaseEnv } from "./src/env";
@@ -25,6 +26,14 @@ const tabs: Array<{ id: Tab; label: string }> = [
 ];
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
   const [fontsLoaded, fontError] = useAppFonts();
   const [tab, setTab] = useState<Tab>("today");
   const [session, setSession] = useState<Session | null>(null);
@@ -69,15 +78,19 @@ export default function App() {
 
   if ((!fontsLoaded && !fontError) || !authReady) {
     return (
-      <View style={styles.loading}>
+      <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.loading}>
         <StatusBar style="light" />
         <ActivityIndicator color={colors.accent} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (hasSupabaseEnv() && !session) {
-    return <AuthScreen />;
+    return (
+      <SafeAreaView edges={["top", "right", "bottom", "left"]} style={styles.app}>
+        <AuthScreen />
+      </SafeAreaView>
+    );
   }
 
   const repository = hasSupabaseEnv() && session ? supabaseChecklistRepository : mockChecklistRepository;
@@ -86,7 +99,7 @@ export default function App() {
 
   return (
     <ChecklistProvider repository={repository} userId={userId}>
-      <View style={styles.app}>
+      <SafeAreaView edges={["top", "right", "left"]} style={styles.app}>
         <StatusBar style="light" />
         <View style={styles.screen}>
           {renderScreen(tab, {
@@ -95,7 +108,7 @@ export default function App() {
             usingDemoMode,
           })}
         </View>
-        <View accessibilityRole="tablist" style={styles.nav}>
+        <SafeAreaView accessibilityRole="tablist" edges={["bottom"]} style={styles.nav}>
           {tabs.map((item) => {
             const selected = item.id === tab;
             return (
@@ -111,8 +124,8 @@ export default function App() {
               </Pressable>
             );
           })}
-        </View>
-      </View>
+        </SafeAreaView>
+      </SafeAreaView>
     </ChecklistProvider>
   );
 }
