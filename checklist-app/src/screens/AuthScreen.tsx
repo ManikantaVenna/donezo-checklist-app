@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
 import { hasSupabaseEnv } from "../env";
 import { getRememberMePreference, setRememberMePreference } from "../lib/authRememberPreference";
@@ -419,7 +419,12 @@ export function AuthScreen({ initialStep = "signin", recoveryEmail, onRecoveryCo
       >
         <View style={styles.content}>
           <View style={styles.brandMark}>
-            <Text style={styles.brandMarkText}>D</Text>
+            <Image
+              accessibilityIgnoresInvertColors
+              accessibilityLabel="Donezo logo"
+              source={require("../../assets/donezo-logo.png")}
+              style={styles.brandLogo}
+            />
           </View>
           <Text style={styles.eyebrow}>DONEZO</Text>
           <Text style={styles.title}>{copy.heroTitle}</Text>
@@ -788,12 +793,21 @@ const styles = StyleSheet.create({
   brandMark: {
     alignItems: "center",
     justifyContent: "center",
-    width: 44,
-    height: 44,
-    borderRadius: radii.card,
-    backgroundColor: colors.accent,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: colors.black,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  brandMarkText: { color: colors.black, fontFamily: fontFamily.black, fontSize: 22 },
+  brandLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+  },
   eyebrow: { marginTop: 26, color: colors.accent, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.5 },
   title: { marginTop: 8, color: colors.text, fontFamily: fontFamily.black, fontSize: 32, lineHeight: 38 },
   subcopy: { marginTop: 8, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 21 },

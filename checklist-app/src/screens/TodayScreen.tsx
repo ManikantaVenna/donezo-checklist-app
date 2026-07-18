@@ -1,4 +1,4 @@
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ProgressCard } from "../components/ProgressCard";
 import { ProjectCard } from "../components/ProjectCard";
 import { TaskComposer } from "../components/TaskComposer";
@@ -43,6 +43,18 @@ export function TodayScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
+      <View style={styles.brandRow}>
+        <Image
+          accessibilityIgnoresInvertColors
+          accessibilityLabel="Donezo logo"
+          source={require("../../assets/donezo-logo.png")}
+          style={styles.brandIcon}
+        />
+        <View>
+          <Text style={styles.brandName}>Donezo</Text>
+          <Text style={styles.brandDetail}>Personal command center</Text>
+        </View>
+      </View>
       <Text style={styles.eyebrow}>TODAY</Text>
       <Text style={styles.title}>Make the day count.</Text>
       <Text style={styles.subcopy}>
@@ -147,6 +159,29 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 20, paddingBottom: 36 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24, backgroundColor: colors.bg },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    marginBottom: 22,
+  },
+  brandIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 11,
+  },
+  brandName: {
+    color: colors.text,
+    fontFamily: fontFamily.black,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  brandDetail: {
+    marginTop: 1,
+    color: colors.accentSoft,
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+  },
   eyebrow: { color: colors.accent, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.4 },
   title: { marginTop: 8, color: colors.text, fontFamily: fontFamily.black, fontSize: 31, lineHeight: 36 },
   subcopy: { marginTop: 7, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },

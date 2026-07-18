@@ -4,22 +4,27 @@
     "slug": "donezo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/donezo-app-icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/donezo-splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#07080B"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#07080B",
+        "foregroundImage": "./assets/donezo-android-foreground.png",
+        "backgroundImage": "./assets/donezo-android-background.png",
+        "monochromeImage": "./assets/donezo-android-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/donezo-favicon.png"
     },
     "plugins": [
       "expo-font"
