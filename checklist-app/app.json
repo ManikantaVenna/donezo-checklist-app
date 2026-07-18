@@ -2,7 +2,7 @@
   "expo": {
     "name": "Donezo",
     "slug": "donezo",
-    "version": "1.0.3",
+    "version": "1.0.2",
     "scheme": "donezo",
     "orientation": "portrait",
     "icon": "./assets/donezo-app-icon.png",
@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.mvbuilds.donezo",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#07080B",
         "foregroundImage": "./assets/donezo-android-foreground.png",
@@ -46,14 +47,6 @@
           "dark": {
             "image": "./assets/donezo-splash-icon.png",
             "backgroundColor": "#07080B"
-          }
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "useLegacyPackaging": true
           }
         }
       ]
