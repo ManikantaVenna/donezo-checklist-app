@@ -5,6 +5,7 @@ import { calculateCurrentStreak, getNextLocalMidnight, isCompletedOnDate, localD
 import { DEFAULT_TIMEZONE } from "../domain/timezones";
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "../data/checklistRepository";
 import { scheduleDailyReminder } from "../lib/reminders";
+import { createOptimisticTask } from "./optimisticTask";
 
 type ChecklistContextValue = {
   snapshot: ChecklistSnapshot | null;
@@ -36,32 +37,87 @@ export function ChecklistProvider({
     localDateKey(new Date(), DEFAULT_TIMEZONE),
   );
   const pendingTaskIds = useRef(new Set<string>());
+  const pendingCreateSequence = useRef(0);
+  const hasLoadedSnapshot = useRef(false);
+  const refreshPromise = useRef<Promise<void> | null>(null);
+  const refreshQueued = useRef(false);
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setSnapshot(await repository.getSnapshot(userId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load tasks.");
-    } finally {
-      setLoading(false);
+    if (refreshPromise.current) {
+      refreshQueued.current = true;
+      await refreshPromise.current;
+      return;
     }
+
+    do {
+      refreshQueued.current = false;
+      const initialLoad = !hasLoadedSnapshot.current;
+      const operation = (async () => {
+        if (initialLoad) setLoading(true);
+        setError(null);
+        try {
+          const nextSnapshot = await repository.getSnapshot(userId);
+          hasLoadedSnapshot.current = true;
+          setSnapshot(nextSnapshot);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Unable to load tasks.");
+        } finally {
+          if (initialLoad) setLoading(false);
+        }
+      })();
+
+      refreshPromise.current = operation;
+      await operation;
+      refreshPromise.current = null;
+    } while (refreshQueued.current);
   }, [repository, userId]);
 
   const createTask = useCallback(
     async (input: CreateTaskInput) => {
-      if (!input.title.trim()) return;
+      if (!input.title.trim() || !snapshot) return;
+
+      const optimisticId = `pending-${Date.now()}-${++pendingCreateSequence.current}`;
+      const optimisticTask = createOptimisticTask(
+        snapshot,
+        userId,
+        input,
+        optimisticId,
+        new Date().toISOString(),
+      );
+      setError(null);
+      setSnapshot((previous) =>
+        previous ? { ...previous, tasks: [...previous.tasks, optimisticTask] } : previous,
+      );
+
       try {
-        await repository.createTask(userId, input);
+        const createdTask = await repository.createTask(userId, {
+          ...input,
+          sortOrder: optimisticTask.sortOrder,
+        });
+        setSnapshot((previous) =>
+          previous
+            ? {
+                ...previous,
+                tasks: previous.tasks.map((task) =>
+                  task.id === optimisticId ? createdTask : task,
+                ),
+              }
+            : previous,
+        );
       } catch (err) {
+        setSnapshot((previous) =>
+          previous
+            ? {
+                ...previous,
+                tasks: previous.tasks.filter((task) => task.id !== optimisticId),
+              }
+            : previous,
+        );
         setError(err instanceof Error ? err.message : "Unable to create task.");
-        return;
       }
-      await refresh();
     },
-    [refresh, repository, userId],
+    [repository, snapshot, userId],
   );
 
   const archiveTask = useCallback(
@@ -197,7 +253,6 @@ export function ChecklistProvider({
 
       try {
         await repository.setTaskComplete(userId, task.id, localDate, !currentlyComplete);
-        await refresh();
       } catch (err) {
         setSnapshot((current) => {
           if (!current) return current;

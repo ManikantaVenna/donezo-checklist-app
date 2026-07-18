@@ -175,34 +175,42 @@ export const supabaseChecklistRepository: ChecklistRepository = {
 
   async createTask(userId, input: CreateTaskInput) {
     const db = client();
-    let orderQuery = db
-      .from("tasks")
-      .select("sort_order")
-      .eq("user_id", userId)
-      .eq("is_archived", false)
-      .order("sort_order", { ascending: false })
-      .limit(1);
+    let sortOrder = input.sortOrder;
 
-    if (input.type === "project") {
-      orderQuery = orderQuery.eq("project_id", input.projectId ?? "");
-    } else {
-      orderQuery = orderQuery.is("project_id", null).eq("type", input.type);
+    if (sortOrder === undefined) {
+      let orderQuery = db
+        .from("tasks")
+        .select("sort_order")
+        .eq("user_id", userId)
+        .eq("is_archived", false)
+        .order("sort_order", { ascending: false })
+        .limit(1);
+
+      if (input.type === "project") {
+        orderQuery = orderQuery.eq("project_id", input.projectId ?? "");
+      } else {
+        orderQuery = orderQuery.is("project_id", null).eq("type", input.type);
+      }
+
+      const orderResult = await orderQuery;
+      throwIfError(orderResult);
+      sortOrder = ((orderResult.data?.[0] as Pick<TaskRow, "sort_order"> | undefined)?.sort_order ?? 0) + 1;
     }
 
-    const orderResult = await orderQuery;
-    throwIfError(orderResult);
+    const result = await db
+      .from("tasks")
+      .insert({
+        user_id: userId,
+        project_id: input.projectId ?? null,
+        type: input.type,
+        title: input.title.trim(),
+        sort_order: sortOrder,
+      })
+      .select("*")
+      .single();
 
-    const highestSortOrder = ((orderResult.data?.[0] as Pick<TaskRow, "sort_order"> | undefined)?.sort_order ?? 0) + 1;
-
-    const { error } = await db.from("tasks").insert({
-      user_id: userId,
-      project_id: input.projectId ?? null,
-      type: input.type,
-      title: input.title.trim(),
-      sort_order: highestSortOrder,
-    });
-
-    throwIfError({ error });
+    throwIfError(result);
+    return mapTask(requireData(result.data as TaskRow | null, "Created task was not returned."));
   },
 
   async renameTask(userId, taskId, title) {

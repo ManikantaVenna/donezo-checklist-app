@@ -38,14 +38,18 @@ export function TaskComposer({
   const submitTask = async () => {
     if (!trimmedTitle || busy) return;
 
-    setBusy(true);
-    await onSubmit({
-      title: trimmedTitle,
-      type: taskType,
-      projectId: taskType === "project" ? projectId : null,
-    });
+    const submittedTitle = trimmedTitle;
     setTitle("");
-    setBusy(false);
+    setBusy(true);
+    try {
+      await onSubmit({
+        title: submittedTitle,
+        type: taskType,
+        projectId: taskType === "project" ? projectId : null,
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

@@ -164,7 +164,7 @@ export class MockChecklistRepository implements ChecklistRepository {
     };
   }
 
-  async createTask(userId: string, input: CreateTaskInput): Promise<void> {
+  async createTask(userId: string, input: CreateTaskInput): Promise<Task> {
     const now = new Date().toISOString();
     const projectId = input.projectId ?? null;
     const sortSiblings =
@@ -174,19 +174,21 @@ export class MockChecklistRepository implements ChecklistRepository {
             (task) => task.userId === userId && task.projectId === null && task.type === input.type && !task.isArchived,
           );
 
-    this.tasks.push({
+    const task: Task = {
       id: `task-${this.nextTaskId}`,
       userId,
       projectId,
       type: input.type,
       title: input.title.trim(),
-      sortOrder: getNextSortOrder(sortSiblings),
+      sortOrder: input.sortOrder ?? getNextSortOrder(sortSiblings),
       isArchived: false,
       completedAt: null,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+    this.tasks.push(task);
     this.nextTaskId += 1;
+    return cloneTask(task);
   }
 
   async renameTask(userId: string, taskId: string, title: string): Promise<void> {

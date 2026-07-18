@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { MockChecklistRepository } from "./mockChecklistRepository";
 
 describe("MockChecklistRepository task ordering", () => {
+  it("returns the created task and accepts a locally calculated sort order", async () => {
+    const repository = new MockChecklistRepository();
+
+    const task = await repository.createTask("demo-user", {
+      title: "Fast task",
+      type: "quick",
+      sortOrder: 12,
+    });
+
+    expect(task).toMatchObject({ title: "Fast task", type: "quick", sortOrder: 12 });
+  });
+
   it("moves tasks up and down within their own list", async () => {
     const repository = new MockChecklistRepository();
     const userId = "demo-user";

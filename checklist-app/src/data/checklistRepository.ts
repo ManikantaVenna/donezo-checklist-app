@@ -1,4 +1,4 @@
-import type { ChecklistSnapshot, TaskType } from "../domain/types";
+import type { ChecklistSnapshot, Task, TaskType } from "../domain/types";
 
 export type MoveDirection = "up" | "down";
 
@@ -6,6 +6,7 @@ export type CreateTaskInput = {
   title: string;
   type: TaskType;
   projectId?: string | null;
+  sortOrder?: number;
 };
 
 export type CreateProjectInput = {
@@ -15,7 +16,7 @@ export type CreateProjectInput = {
 export type ChecklistRepository = {
   getSnapshot(userId: string): Promise<ChecklistSnapshot>;
   subscribeToChanges?: (userId: string, onChange: () => void) => () => void;
-  createTask(userId: string, input: CreateTaskInput): Promise<void>;
+  createTask(userId: string, input: CreateTaskInput): Promise<Task>;
   renameTask(userId: string, taskId: string, title: string): Promise<void>;
   archiveTask(userId: string, taskId: string): Promise<void>;
   moveTask(userId: string, taskId: string, direction: MoveDirection): Promise<void>;
