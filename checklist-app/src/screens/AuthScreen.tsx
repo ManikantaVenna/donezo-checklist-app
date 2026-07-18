@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
 import { hasSupabaseEnv } from "../env";
+import { getRememberMePreference, setRememberMePreference } from "../lib/authRememberPreference";
 import { supabase } from "../lib/supabase";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
@@ -14,11 +15,18 @@ export function AuthScreen() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<AuthStep>("form");
   const [busy, setBusy] = useState<AuthAction | null>(null);
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
     if (!hasSupabaseEnv() || !supabase) {
       Alert.alert("Demo mode", "Supabase env is missing. Demo mode is active.");
     }
+
+    void getRememberMePreference()
+      .then(setRememberMe)
+      .catch(() => {
+        // Keep the friendly default if local preference storage is unavailable.
+      });
   }, []);
 
   function getValidatedCredentials() {
@@ -51,6 +59,7 @@ export function AuthScreen() {
 
     setBusy("signin");
     try {
+      await setRememberMePreference(rememberMe);
       const result = await supabase.auth.signInWithPassword(credentials);
 
       if (result.error) {
@@ -82,6 +91,7 @@ export function AuthScreen() {
 
     setBusy("signup");
     try {
+      await setRememberMePreference(rememberMe);
       const result = await supabase.auth.signUp(credentials);
 
       if (result.error) {
@@ -231,6 +241,21 @@ export function AuthScreen() {
                 value={password}
               />
 
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: rememberMe }}
+                onPress={() => setRememberMe((current) => !current)}
+                style={({ pressed }) => [styles.rememberRow, pressed && styles.pressed]}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  <Text style={[styles.checkmark, rememberMe && styles.checkmarkVisible]}>✓</Text>
+                </View>
+                <View style={styles.rememberCopy}>
+                  <Text style={styles.rememberTitle}>Remember me</Text>
+                  <Text style={styles.rememberDetail}>Stay signed in on this device.</Text>
+                </View>
+              </Pressable>
+
               <View style={styles.actions}>
                 <AppButton
                   disabled={isBusy}
@@ -344,7 +369,57 @@ const styles = StyleSheet.create({
     letterSpacing: 7,
     textAlign: "center",
   },
+  rememberRow: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "rgba(255,255,255,0.025)",
+    padding: 11,
+  },
+  checkbox: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.panel2,
+  },
+  checkboxChecked: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
+  },
+  checkmark: {
+    color: colors.black,
+    fontFamily: fontFamily.black,
+    fontSize: 14,
+    opacity: 0,
+  },
+  checkmarkVisible: {
+    opacity: 1,
+  },
+  rememberCopy: {
+    flex: 1,
+  },
+  rememberTitle: {
+    color: colors.text,
+    fontFamily: fontFamily.black,
+    fontSize: 13,
+  },
+  rememberDetail: {
+    marginTop: 2,
+    color: colors.muted,
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+  },
   actions: { gap: 10 },
+  pressed: { opacity: 0.78 },
   footer: { marginTop: 18, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 12, lineHeight: 18, textAlign: "center" },
 });
 

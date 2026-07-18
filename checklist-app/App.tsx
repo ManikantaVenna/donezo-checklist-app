@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { mockChecklistRepository } from "./src/data/mockChecklistRepository";
 import { supabaseChecklistRepository } from "./src/data/supabaseChecklistRepository";
 import { hasSupabaseEnv } from "./src/env";
+import { getRememberMePreference } from "./src/lib/authRememberPreference";
 import { supabase } from "./src/lib/supabase";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { DailyScreen } from "./src/screens/DailyScreen";
@@ -38,15 +39,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) {
+    const authClient = supabase;
+
+    if (!authClient) {
       setAuthReady(true);
       return;
     }
 
     let active = true;
-    void supabase.auth
+    void authClient.auth
       .getSession()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
+        const rememberMe = await getRememberMePreference();
+        if (!rememberMe && data.session) {
+          await authClient.auth.signOut({ scope: "local" });
+          if (active) setSession(null);
+          return;
+        }
+
         if (active) setSession(data.session);
       })
       .catch(() => {
@@ -55,7 +65,7 @@ export default function App() {
       .finally(() => {
         if (active) setAuthReady(true);
       });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: subscription } = authClient.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
     });
 

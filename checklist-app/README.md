@@ -13,6 +13,8 @@ Without Supabase env values, the app runs in demo mode with mock data.
 
 Donezo uses email + password auth. New accounts confirm with a 6-digit email code instead of making the user click a confirmation link.
 
+The sign-in form includes a Remember me option. When enabled, Donezo keeps the user signed in on that device. When disabled, Donezo clears the saved session on the next app/browser restart.
+
 Recommended Supabase Auth settings:
 
 - Authentication > Email Templates > Confirm signup: show the 6-digit `{{ .Token }}` and remove/avoid relying on the confirmation link.
