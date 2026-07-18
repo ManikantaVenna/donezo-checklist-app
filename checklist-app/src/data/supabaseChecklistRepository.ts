@@ -110,6 +110,11 @@ function mapReminderPreferences(row: ReminderPreferenceRow): ReminderPreferences
   };
 }
 
+// Set once the reorder_tasks database function is observed to be missing
+// (PGRST202), so later reorders skip the doomed probe and go straight to the
+// per-row fallback.
+let reorderRpcUnavailable = false;
+
 export const supabaseChecklistRepository: ChecklistRepository = {
   async getSnapshot(userId) {
     const db = client();
@@ -246,11 +251,28 @@ export const supabaseChecklistRepository: ChecklistRepository = {
     if (changes.length === 0) return;
 
     const db = client();
-    // Each row is a separate PostgREST update; there is no transaction without a
-    // database function. Writes run sequentially so a failure leaves a known
-    // prefix applied, and that prefix is then compensated back to its previous
-    // order (best effort - if compensation also fails, the caller's revert plus
-    // reconciling refresh converges the UI on whatever the server holds).
+
+    // Preferred path: the reorder_tasks function applies every change in one
+    // transaction (SECURITY INVOKER, so RLS scopes it to the caller's rows).
+    if (!reorderRpcUnavailable) {
+      const rpcResult = await db.rpc("reorder_tasks", {
+        changes: changes.map((change) => ({ task_id: change.taskId, sort_order: change.sortOrder })),
+      });
+      if (!rpcResult.error) return;
+
+      const code = (rpcResult.error as { code?: string }).code;
+      if (code !== "PGRST202") {
+        throw rpcResult.error;
+      }
+      reorderRpcUnavailable = true;
+    }
+
+    // Fallback for databases without the function: each row is a separate
+    // PostgREST update, so there is no transaction. Writes run sequentially so
+    // a failure leaves a known prefix applied, and that prefix is compensated
+    // back to its previous order (best effort - if compensation also fails, the
+    // caller's revert plus reconciling refresh converges the UI on whatever the
+    // server holds).
     const applied: typeof changes = [];
     try {
       for (const change of changes) {

@@ -421,13 +421,11 @@ export function ChecklistProvider({
   useEffect(() => {
     if (!repository.subscribeToChanges) return undefined;
 
-    const unsubscribe = repository.subscribeToChanges(userId, (reason) => {
-      // If the channel joined before the startup snapshot resolved, that fetch
-      // observes post-join state and the initial join needs no refresh. When the
-      // snapshot finished first, writes from other devices could land in the gap
-      // between the snapshot read and the join, so reconcile once.
-      if (reason === "initial-subscribe" && !hasLoadedSnapshot.current) return;
-
+    const unsubscribe = repository.subscribeToChanges(userId, () => {
+      // Every join (initial or rejoin) schedules one debounced refresh: writes
+      // from other devices can land between a snapshot's server-side read and
+      // the channel join, and the client cannot observe that ordering. The
+      // refresh is non-blocking and coalesces with any fetch already in flight.
       if (realtimeRefreshTimeout.current) {
         clearTimeout(realtimeRefreshTimeout.current);
       }

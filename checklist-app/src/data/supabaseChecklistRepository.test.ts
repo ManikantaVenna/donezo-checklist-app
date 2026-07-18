@@ -49,11 +49,23 @@ function fakeTasksTable() {
   };
 }
 
+const rpcState: {
+  calls: Array<{ fn: string; args: unknown }>;
+  result: { error: { code?: string; message?: string } | null };
+} = {
+  calls: [],
+  result: { error: null },
+};
+
 vi.mock("../lib/supabase", () => ({
   supabase: {
     channel: vi.fn(() => fakeChannel),
     removeChannel,
     from: vi.fn(() => fakeTasksTable()),
+    rpc: vi.fn(async (fn: string, args: unknown) => {
+      rpcState.calls.push({ fn, args });
+      return rpcState.result;
+    }),
   },
 }));
 
@@ -62,7 +74,11 @@ afterEach(() => {
   channelState.statusCallback = null;
   updateState.calls = [];
   updateState.failOnCall = null;
+  rpcState.calls = [];
+  rpcState.result = { error: null };
   vi.clearAllMocks();
+  // The repository memoizes a missing reorder RPC; give each test a fresh module.
+  vi.resetModules();
 });
 
 describe("supabaseChecklistRepository.subscribeToChanges", () => {
@@ -107,36 +123,74 @@ describe("supabaseChecklistRepository.subscribeToChanges", () => {
 });
 
 describe("supabaseChecklistRepository.updateTaskOrders", () => {
-  it("writes sequentially and compensates already-applied rows when a later write fails", async () => {
+  const changes = [
+    { taskId: "task-a", sortOrder: 2, previousSortOrder: 1 },
+    { taskId: "task-b", sortOrder: 1, previousSortOrder: 2 },
+  ];
+
+  it("applies the whole reorder through the atomic RPC when it is available", async () => {
     const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+
+    await supabaseChecklistRepository.updateTaskOrders("user-1", changes);
+
+    expect(rpcState.calls).toEqual([
+      {
+        fn: "reorder_tasks",
+        args: {
+          changes: [
+            { task_id: "task-a", sort_order: 2 },
+            { task_id: "task-b", sort_order: 1 },
+          ],
+        },
+      },
+    ]);
+    // No per-row updates when the transaction succeeded.
+    expect(updateState.calls).toEqual([]);
+  });
+
+  it("surfaces RPC failures without falling back to non-atomic writes", async () => {
+    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+    rpcState.result = { error: { code: "P0001", message: "too many reorder changes" } };
+
+    await expect(supabaseChecklistRepository.updateTaskOrders("user-1", changes)).rejects.toMatchObject({
+      code: "P0001",
+    });
+    expect(updateState.calls).toEqual([]);
+  });
+
+  it("falls back to sequential writes when the RPC is not deployed and remembers the miss", async () => {
+    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+    rpcState.result = { error: { code: "PGRST202", message: "function not found" } };
+
+    await supabaseChecklistRepository.updateTaskOrders("user-1", changes);
+    expect(rpcState.calls).toHaveLength(1);
+    expect(updateState.calls).toEqual([
+      { taskId: "task-a", sortOrder: 2 },
+      { taskId: "task-b", sortOrder: 1 },
+    ]);
+
+    // The missing function is memoized: the next reorder skips the RPC probe.
+    updateState.calls = [];
+    await supabaseChecklistRepository.updateTaskOrders("user-1", changes);
+    expect(rpcState.calls).toHaveLength(1);
+    expect(updateState.calls).toEqual([
+      { taskId: "task-a", sortOrder: 2 },
+      { taskId: "task-b", sortOrder: 1 },
+    ]);
+  });
+
+  it("compensates already-applied rows when a fallback write fails", async () => {
+    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+    rpcState.result = { error: { code: "PGRST202", message: "function not found" } };
     updateState.failOnCall = 2;
 
-    await expect(
-      supabaseChecklistRepository.updateTaskOrders("user-1", [
-        { taskId: "task-a", sortOrder: 2, previousSortOrder: 1 },
-        { taskId: "task-b", sortOrder: 1, previousSortOrder: 2 },
-      ]),
-    ).rejects.toThrow("write failed");
+    await expect(supabaseChecklistRepository.updateTaskOrders("user-1", changes)).rejects.toThrow("write failed");
 
     expect(updateState.calls).toEqual([
       { taskId: "task-a", sortOrder: 2 },
       { taskId: "task-b", sortOrder: 1 },
       // Compensation restores the row that was already written.
       { taskId: "task-a", sortOrder: 1 },
-    ]);
-  });
-
-  it("applies all rows in order when every write succeeds", async () => {
-    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
-
-    await supabaseChecklistRepository.updateTaskOrders("user-1", [
-      { taskId: "task-a", sortOrder: 2, previousSortOrder: 1 },
-      { taskId: "task-b", sortOrder: 1, previousSortOrder: 2 },
-    ]);
-
-    expect(updateState.calls).toEqual([
-      { taskId: "task-a", sortOrder: 2 },
-      { taskId: "task-b", sortOrder: 1 },
     ]);
   });
 });

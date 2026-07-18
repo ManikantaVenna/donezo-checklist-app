@@ -431,7 +431,7 @@ describe("ChecklistProvider daily task races", () => {
 });
 
 describe("ChecklistProvider realtime subscription policy", () => {
-  it("refreshes on the initial subscribe only when the snapshot loaded before the channel joined", async () => {
+  it("schedules one debounced refresh on the initial join and again on every rejoin", async () => {
     vi.useFakeTimers();
     try {
       let notify: ((reason: "event" | "initial-subscribe" | "resubscribe") => void) | null = null;
@@ -447,8 +447,8 @@ describe("ChecklistProvider realtime subscription policy", () => {
       expect(checklist.value.snapshot).not.toBeNull();
       expect(getSnapshot).toHaveBeenCalledTimes(1);
 
-      // Snapshot finished loading before the channel joined: the gap between the
-      // snapshot read and the join is real, so the join must reconcile once.
+      // Writes from other devices can land between the snapshot's server-side
+      // read and the channel join, so the initial join reconciles once.
       await act(async () => {
         notify!("initial-subscribe");
         await vi.advanceTimersByTimeAsync(300);
@@ -466,7 +466,7 @@ describe("ChecklistProvider realtime subscription policy", () => {
     }
   });
 
-  it("skips the initial-subscribe refresh while the first snapshot fetch is still in flight", async () => {
+  it("coalesces the initial-join refresh with a startup fetch still in flight without blocking it", async () => {
     vi.useFakeTimers();
     try {
       let notify: ((reason: "event" | "initial-subscribe" | "resubscribe") => void) | null = null;
@@ -484,8 +484,8 @@ describe("ChecklistProvider realtime subscription policy", () => {
       });
       const checklist = await renderChecklist(repository);
 
-      // The channel joins before the initial snapshot resolves: the fetch will
-      // observe post-join state, so an extra startup refresh is unnecessary.
+      // The join happens while the startup fetch is still in flight: the
+      // debounced refresh queues behind it instead of racing it.
       await act(async () => {
         notify!("initial-subscribe");
         await vi.advanceTimersByTimeAsync(300);
@@ -497,9 +497,11 @@ describe("ChecklistProvider realtime subscription policy", () => {
         await Promise.resolve();
         await Promise.resolve();
         await Promise.resolve();
+        await Promise.resolve();
       });
       expect(checklist.value.snapshot).not.toBeNull();
-      expect(getSnapshot).toHaveBeenCalledTimes(1);
+      // Exactly one reconciling fetch runs after the startup fetch settles.
+      expect(getSnapshot).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
