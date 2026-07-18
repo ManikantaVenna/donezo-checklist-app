@@ -1,5 +1,6 @@
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "./checklistRepository";
 import type { ChecklistSnapshot, DailyCompletion, Project, ReminderPreferences, Task } from "../domain/types";
+import { sortedCopy } from "../domain/sorting";
 
 const DEMO_USER_ID = "demo-user";
 const INITIAL_NOW = "2026-07-17T12:00:00.000Z";
@@ -42,7 +43,7 @@ function sameTaskList(task: Task, candidate: Task): boolean {
 }
 
 function sortByManualOrder<T extends { sortOrder: number; createdAt: string }>(items: T[]): T[] {
-  return items.toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
+  return sortedCopy(items, (first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
 }
 
 export class MockChecklistRepository implements ChecklistRepository {
@@ -149,11 +150,11 @@ export class MockChecklistRepository implements ChecklistRepository {
     return {
       tasks: this.tasks
         .filter((task) => task.userId === userId && !task.isArchived)
-        .toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt))
+        .sort((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt))
         .map(cloneTask),
       projects: this.projects
         .filter((project) => project.userId === userId && !project.isArchived)
-        .toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt))
+        .sort((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt))
         .map(cloneProject),
       dailyCompletions: this.dailyCompletions
         .filter((completion) => completion.userId === userId)

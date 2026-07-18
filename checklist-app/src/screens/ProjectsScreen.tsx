@@ -5,6 +5,7 @@ import { ProjectCard } from "../components/ProjectCard";
 import { TaskComposer } from "../components/TaskComposer";
 import { TaskRow } from "../components/TaskRow";
 import type { CreateProjectInput, CreateTaskInput } from "../data/checklistRepository";
+import { sortedCopy } from "../domain/sorting";
 import type { Project, Task } from "../domain/types";
 import { useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
@@ -168,7 +169,7 @@ function ProjectSection({
 }
 
 function sortTasks(tasks: Task[]): Task[] {
-  return tasks.toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
+  return sortedCopy(tasks, (first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
 }
 
 const styles = StyleSheet.create({

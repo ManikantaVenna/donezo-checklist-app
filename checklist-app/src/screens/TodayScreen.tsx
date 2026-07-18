@@ -4,6 +4,7 @@ import { ProjectCard } from "../components/ProjectCard";
 import { TaskComposer } from "../components/TaskComposer";
 import { TaskRow } from "../components/TaskRow";
 import { isCompletedOnDate } from "../domain/dates";
+import { sortedCopy } from "../domain/sorting";
 import type { Task } from "../domain/types";
 import { getDailyStreak, useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
@@ -143,7 +144,7 @@ export function TodayScreen() {
 }
 
 function sortTasks(tasks: Task[]): Task[] {
-  return tasks.toSorted((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
+  return sortedCopy(tasks, (first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt));
 }
 
 function SectionTitle({ title, detail }: { title: string; detail: string }) {

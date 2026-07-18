@@ -1,5 +1,6 @@
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "./checklistRepository";
 import type { DailyCompletion, Project, ReminderPreferences, Task, TaskType } from "../domain/types";
+import { sortedCopy } from "../domain/sorting";
 import { supabase } from "../lib/supabase";
 
 type ProfileRow = {
@@ -111,7 +112,7 @@ function mapReminderPreferences(row: ReminderPreferenceRow): ReminderPreferences
 }
 
 function sortByManualOrder<T extends { sort_order: number; created_at: string }>(rows: T[]): T[] {
-  return rows.toSorted((first, second) => first.sort_order - second.sort_order || first.created_at.localeCompare(second.created_at));
+  return sortedCopy(rows, (first, second) => first.sort_order - second.sort_order || first.created_at.localeCompare(second.created_at));
 }
 
 export const supabaseChecklistRepository: ChecklistRepository = {
