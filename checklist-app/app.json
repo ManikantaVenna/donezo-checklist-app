@@ -50,6 +50,12 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9d95ca72-747f-47f2-942c-7054cfd2a6a3"
+      }
+    },
+    "owner": "mv-builds"
   }
 }
