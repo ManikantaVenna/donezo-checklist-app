@@ -11,13 +11,15 @@ npm run web
 
 Without Supabase env values, the app runs in demo mode with mock data.
 
-Donezo uses email + password auth. New accounts confirm with a 6-digit email code instead of making the user click a confirmation link.
+Donezo uses email + password auth. New accounts confirm with a 6-digit email code instead of making the user click a confirmation link. The auth card supports sign in, create account, verify code, forgot password, and set-new-password states while still feeling like one smooth login page.
 
 The sign-in form includes a Remember me option. When enabled, Donezo keeps the user signed in on that device. When disabled, Donezo clears the saved session on the next app/browser restart.
 
 Recommended Supabase Auth settings:
 
 - Authentication > Email Templates > Confirm signup: show the 6-digit `{{ .Token }}` and remove/avoid relying on the confirmation link.
+- Authentication > Email Templates > Reset password: keep the reset link enabled so Donezo can open into the set-new-password screen.
+- Authentication > URL Configuration: keep the local/dev preview URL allowed, for example `http://localhost:8081`, so reset links can return to the app during testing.
 - Authentication > SMTP Settings: use custom SMTP before public launch so emails come from Donezo instead of the default Supabase sender.
 
 ## Supabase

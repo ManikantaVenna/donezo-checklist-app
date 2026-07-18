@@ -30,11 +30,13 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("today");
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(() => !supabase);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
 
     await supabase.auth.signOut();
+    setPasswordRecoveryMode(false);
     setSession(null);
   }, []);
 
@@ -65,7 +67,15 @@ export default function App() {
       .finally(() => {
         if (active) setAuthReady(true);
       });
-    const { data: subscription } = authClient.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: subscription } = authClient.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecoveryMode(true);
+      }
+
+      if (event === "SIGNED_OUT") {
+        setPasswordRecoveryMode(false);
+      }
+
       setSession(nextSession);
     });
 
@@ -84,8 +94,14 @@ export default function App() {
     );
   }
 
-  if (hasSupabaseEnv() && !session) {
-    return <AuthScreen />;
+  if (hasSupabaseEnv() && (!session || passwordRecoveryMode)) {
+    return (
+      <AuthScreen
+        initialStep={passwordRecoveryMode ? "resetPassword" : "signin"}
+        recoveryEmail={session?.user.email ?? null}
+        onRecoveryComplete={() => setPasswordRecoveryMode(false)}
+      />
+    );
   }
 
   const repository = hasSupabaseEnv() && session ? supabaseChecklistRepository : mockChecklistRepository;
