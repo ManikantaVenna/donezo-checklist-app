@@ -1,4 +1,4 @@
-# Personal Checklist App
+# Donezo
 
 Premium personal checklist app for quick tasks, daily routines with streaks, and simple project checklists.
 
@@ -10,6 +10,13 @@ npm run web
 ```
 
 Without Supabase env values, the app runs in demo mode with mock data.
+
+Donezo uses passwordless email-code auth. Supabase Auth must be configured with email templates that expose `{{ .Token }}` for users to copy into the app.
+
+Recommended Supabase Auth settings:
+
+- Authentication → Email Templates: update confirmation/magic-link templates to show the 6-digit `{{ .Token }}`.
+- Authentication → SMTP Settings: use custom SMTP before public launch so emails come from Donezo instead of the default Supabase sender.
 
 ## Supabase
 

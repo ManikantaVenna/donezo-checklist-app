@@ -5,11 +5,13 @@ import { hasSupabaseEnv } from "../env";
 import { supabase } from "../lib/supabase";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
-type AuthAction = "signin" | "signup";
+type AuthStep = "email" | "code";
+type AuthAction = "send" | "verify";
 
 export function AuthScreen() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<AuthStep>("email");
   const [busy, setBusy] = useState<AuthAction | null>(null);
 
   useEffect(() => {
@@ -18,7 +20,7 @@ export function AuthScreen() {
     }
   }, []);
 
-  async function submit(action: AuthAction) {
+  async function sendCode() {
     if (busy) return;
 
     if (!hasSupabaseEnv() || !supabase) {
@@ -26,27 +28,80 @@ export function AuthScreen() {
       return;
     }
 
-    setBusy(action);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      Alert.alert("Email needed", "Enter a real email address so Donezo can send your login code.");
+      return;
+    }
+
+    setBusy("send");
     try {
-      const result =
-        action === "signin"
-          ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-          : await supabase.auth.signUp({ email: email.trim(), password });
+      const result = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: { shouldCreateUser: true },
+      });
 
       if (result.error) {
-        Alert.alert("Authentication failed", result.error.message);
-      } else if (action === "signup" && !result.data.session) {
-        Alert.alert("Check your email", "Confirm your email address to finish creating your account.");
+        Alert.alert("Code failed to send", result.error.message);
+      } else {
+        setEmail(normalizedEmail);
+        setStep("code");
+        Alert.alert("Code sent", "Check your email for the Donezo verification code.");
       }
     } catch (error) {
       Alert.alert(
-        "Authentication failed",
+        "Code failed to send",
         error instanceof Error ? error.message : "Please try again.",
       );
     } finally {
       setBusy(null);
     }
   }
+
+  async function verifyCode() {
+    if (busy) return;
+
+    if (!hasSupabaseEnv() || !supabase) {
+      Alert.alert("Demo mode", "Supabase env is missing. Demo mode is active.");
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = code.trim();
+
+    if (!isValidEmail(normalizedEmail)) {
+      Alert.alert("Email needed", "Enter the email address you used for Donezo.");
+      setStep("email");
+      return;
+    }
+
+    if (normalizedCode.length < 6) {
+      Alert.alert("Code needed", "Enter the 6-digit code from your Donezo email.");
+      return;
+    }
+
+    setBusy("verify");
+    try {
+      const result = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: normalizedCode,
+        type: "email",
+      });
+
+      if (result.error) {
+        Alert.alert("Code did not work", result.error.message);
+      }
+    } catch (error) {
+      Alert.alert(
+        "Code did not work",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const maskedEmail = email.trim().toLowerCase();
 
   return (
     <KeyboardAvoidingView
@@ -55,57 +110,85 @@ export function AuthScreen() {
     >
       <View style={styles.content}>
         <View style={styles.brandMark}>
-          <Text style={styles.brandMarkText}>B</Text>
+          <Text style={styles.brandMarkText}>D</Text>
         </View>
-        <Text style={styles.eyebrow}>B PRIME</Text>
-        <Text style={styles.title}>Build a better day.</Text>
-        <Text style={styles.subcopy}>Sign in to keep your routines, tasks, and projects in sync.</Text>
+        <Text style={styles.eyebrow}>DONEZO</Text>
+        <Text style={styles.title}>Tasks? Donezo.</Text>
+        <Text style={styles.subcopy}>
+          Sign in with a quick email code. No password to remember, no tiny password lecture.
+        </Text>
 
         <View style={styles.form}>
-          <Text style={styles.label}>EMAIL</Text>
-          <TextInput
-            accessibilityLabel="Email address"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            value={email}
-          />
-
-          <Text style={styles.label}>PASSWORD</Text>
-          <TextInput
-            accessibilityLabel="Password"
-            autoComplete="current-password"
-            onChangeText={setPassword}
-            placeholder="Your password"
-            placeholderTextColor={colors.muted}
-            secureTextEntry
-            style={styles.input}
-            value={password}
-          />
-
-          <View style={styles.actions}>
-            <AppButton
-              disabled={Boolean(busy)}
-              label={busy === "signin" ? "Signing in..." : "Sign in"}
-              onPress={() => submit("signin")}
-            />
-            <AppButton
-              disabled={Boolean(busy)}
-              label={busy === "signup" ? "Creating account..." : "Create account"}
-              onPress={() => submit("signup")}
-              tone="ghost"
-            />
-          </View>
+          {step === "email" ? (
+            <>
+              <Text style={styles.label}>EMAIL</Text>
+              <TextInput
+                accessibilityLabel="Email address"
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={email}
+              />
+              <AppButton
+                disabled={Boolean(busy)}
+                label={busy === "send" ? "Sending code..." : "Send verification code"}
+                onPress={sendCode}
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>VERIFICATION CODE</Text>
+              <Text style={styles.helper}>We sent a code to {maskedEmail}.</Text>
+              <TextInput
+                accessibilityLabel="Verification code"
+                autoCapitalize="none"
+                autoComplete="one-time-code"
+                keyboardType="number-pad"
+                maxLength={6}
+                onChangeText={(value) => setCode(value.replace(/\D/g, ""))}
+                placeholder="123456"
+                placeholderTextColor={colors.muted}
+                style={[styles.input, styles.codeInput]}
+                value={code}
+              />
+              <View style={styles.actions}>
+                <AppButton
+                  disabled={Boolean(busy)}
+                  label={busy === "verify" ? "Checking code..." : "Verify and enter"}
+                  onPress={verifyCode}
+                />
+                <AppButton
+                  disabled={Boolean(busy)}
+                  label={busy === "send" ? "Resending..." : "Resend code"}
+                  onPress={sendCode}
+                  tone="ghost"
+                />
+                <AppButton
+                  disabled={Boolean(busy)}
+                  label="Use another email"
+                  onPress={() => {
+                    setCode("");
+                    setStep("email");
+                  }}
+                  tone="ghost"
+                />
+              </View>
+            </>
+          )}
         </View>
 
-        <Text style={styles.footer}>Your checklist will stay in sync across your signed-in devices.</Text>
+        <Text style={styles.footer}>Donezo keeps your tasks, routines, and projects synced across devices.</Text>
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 const styles = StyleSheet.create({
@@ -125,6 +208,7 @@ const styles = StyleSheet.create({
   subcopy: { marginTop: 8, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 21 },
   form: { marginTop: 32, borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 16 },
   label: { marginBottom: 7, color: colors.muted, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.1 },
+  helper: { marginBottom: 10, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 19 },
   input: {
     height: 48,
     marginBottom: 18,
@@ -136,6 +220,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     fontSize: 15,
     paddingHorizontal: 13,
+  },
+  codeInput: {
+    color: colors.accentSoft,
+    fontFamily: fontFamily.black,
+    fontSize: 22,
+    letterSpacing: 7,
+    textAlign: "center",
   },
   actions: { gap: 10 },
   footer: { marginTop: 18, color: colors.muted, fontFamily: fontFamily.regular, fontSize: 12, lineHeight: 18, textAlign: "center" },

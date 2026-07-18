@@ -208,8 +208,8 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
         <Text style={styles.value}>{usingDemoMode ? "Local demo account" : accountEmail ?? "Signed in"}</Text>
         <Text style={styles.detail}>
           {usingDemoMode
-            ? "Sign-up and cross-device sync appear when real Supabase credentials are added."
-            : "Your tasks sync through your account on this Supabase project."}
+            ? "Sign-up and cross-device sync appear when Donezo cloud sync is connected."
+            : "Your tasks sync privately through your Donezo account."}
         </Text>
         {!usingDemoMode && onSignOut ? (
           <View style={styles.signOut}>
