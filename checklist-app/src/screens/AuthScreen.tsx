@@ -5,13 +5,14 @@ import { hasSupabaseEnv } from "../env";
 import { supabase } from "../lib/supabase";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
-type AuthStep = "email" | "code";
-type AuthAction = "send" | "verify";
+type AuthStep = "form" | "code";
+type AuthAction = "signin" | "signup" | "resend" | "verify";
 
 export function AuthScreen() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<AuthStep>("email");
+  const [step, setStep] = useState<AuthStep>("form");
   const [busy, setBusy] = useState<AuthAction | null>(null);
 
   useEffect(() => {
@@ -20,7 +21,91 @@ export function AuthScreen() {
     }
   }, []);
 
-  async function sendCode() {
+  function getValidatedCredentials() {
+    const normalizedEmail = email.trim().toLowerCase();
+    const passwordError = getPasswordError(password);
+
+    if (!isValidEmail(normalizedEmail)) {
+      Alert.alert("Email needed", "Enter a real email address for Donezo.");
+      return null;
+    }
+
+    if (passwordError) {
+      Alert.alert("Password too short", passwordError);
+      return null;
+    }
+
+    return { email: normalizedEmail, password };
+  }
+
+  async function signIn() {
+    if (busy) return;
+
+    if (!hasSupabaseEnv() || !supabase) {
+      Alert.alert("Demo mode", "Supabase env is missing. Demo mode is active.");
+      return;
+    }
+
+    const credentials = getValidatedCredentials();
+    if (!credentials) return;
+
+    setBusy("signin");
+    try {
+      const result = await supabase.auth.signInWithPassword(credentials);
+
+      if (result.error) {
+        const message = result.error.message.toLowerCase().includes("email not confirmed")
+          ? "This email still needs verification. Tap Create account again or enter the verification code from your email."
+          : result.error.message;
+        Alert.alert("Sign in failed", message);
+      }
+    } catch (error) {
+      Alert.alert(
+        "Sign in failed",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createAccount() {
+    if (busy) return;
+
+    if (!hasSupabaseEnv() || !supabase) {
+      Alert.alert("Demo mode", "Supabase env is missing. Demo mode is active.");
+      return;
+    }
+
+    const credentials = getValidatedCredentials();
+    if (!credentials) return;
+
+    setBusy("signup");
+    try {
+      const result = await supabase.auth.signUp(credentials);
+
+      if (result.error) {
+        Alert.alert("Account failed", result.error.message);
+      } else if (result.data.session) {
+        // Some auth setups return a session immediately. In hosted Supabase with
+        // email confirmations enabled, the user normally lands on the code step.
+        setEmail(credentials.email);
+      } else {
+        setEmail(credentials.email);
+        setStep("code");
+        Alert.alert("Code sent", "Check your email for the Donezo account verification code.");
+      }
+    } catch (error) {
+      Alert.alert(
+        "Account failed",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function resendSignupCode() {
     if (busy) return;
 
     if (!hasSupabaseEnv() || !supabase) {
@@ -30,27 +115,26 @@ export function AuthScreen() {
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!isValidEmail(normalizedEmail)) {
-      Alert.alert("Email needed", "Enter a real email address so Donezo can send your login code.");
+      Alert.alert("Email needed", "Enter the email address you used for Donezo.");
+      setStep("form");
       return;
     }
 
-    setBusy("send");
+    setBusy("resend");
     try {
-      const result = await supabase.auth.signInWithOtp({
+      const result = await supabase.auth.resend({
+        type: "signup",
         email: normalizedEmail,
-        options: { shouldCreateUser: true },
       });
 
       if (result.error) {
-        Alert.alert("Code failed to send", result.error.message);
+        Alert.alert("Code failed to resend", result.error.message);
       } else {
-        setEmail(normalizedEmail);
-        setStep("code");
-        Alert.alert("Code sent", "Check your email for the Donezo verification code.");
+        Alert.alert("Code resent", "Check your email for the new Donezo verification code.");
       }
     } catch (error) {
       Alert.alert(
-        "Code failed to send",
+        "Code failed to resend",
         error instanceof Error ? error.message : "Please try again.",
       );
     } finally {
@@ -58,7 +142,7 @@ export function AuthScreen() {
     }
   }
 
-  async function verifyCode() {
+  async function verifySignupCode() {
     if (busy) return;
 
     if (!hasSupabaseEnv() || !supabase) {
@@ -71,7 +155,7 @@ export function AuthScreen() {
 
     if (!isValidEmail(normalizedEmail)) {
       Alert.alert("Email needed", "Enter the email address you used for Donezo.");
-      setStep("email");
+      setStep("form");
       return;
     }
 
@@ -85,7 +169,7 @@ export function AuthScreen() {
       const result = await supabase.auth.verifyOtp({
         email: normalizedEmail,
         token: normalizedCode,
-        type: "email",
+        type: "signup",
       });
 
       if (result.error) {
@@ -102,6 +186,7 @@ export function AuthScreen() {
   }
 
   const maskedEmail = email.trim().toLowerCase();
+  const isBusy = Boolean(busy);
 
   return (
     <KeyboardAvoidingView
@@ -115,11 +200,11 @@ export function AuthScreen() {
         <Text style={styles.eyebrow}>DONEZO</Text>
         <Text style={styles.title}>Tasks? Donezo.</Text>
         <Text style={styles.subcopy}>
-          Sign in with a quick email code. No password to remember, no tiny password lecture.
+          Sign in with your password. New accounts confirm with a quick email code.
         </Text>
 
         <View style={styles.form}>
-          {step === "email" ? (
+          {step === "form" ? (
             <>
               <Text style={styles.label}>EMAIL</Text>
               <TextInput
@@ -133,16 +218,39 @@ export function AuthScreen() {
                 style={styles.input}
                 value={email}
               />
-              <AppButton
-                disabled={Boolean(busy)}
-                label={busy === "send" ? "Sending code..." : "Send verification code"}
-                onPress={sendCode}
+
+              <Text style={styles.label}>PASSWORD</Text>
+              <TextInput
+                accessibilityLabel="Password"
+                autoComplete="current-password"
+                onChangeText={setPassword}
+                placeholder="Your password"
+                placeholderTextColor={colors.muted}
+                secureTextEntry
+                style={styles.input}
+                value={password}
               />
+
+              <View style={styles.actions}>
+                <AppButton
+                  disabled={isBusy}
+                  label={busy === "signin" ? "Signing in..." : "Sign in"}
+                  onPress={signIn}
+                />
+                <AppButton
+                  disabled={isBusy}
+                  label={busy === "signup" ? "Creating account..." : "Create account"}
+                  onPress={createAccount}
+                  tone="ghost"
+                />
+              </View>
             </>
           ) : (
             <>
               <Text style={styles.label}>VERIFICATION CODE</Text>
-              <Text style={styles.helper}>We sent a code to {maskedEmail}.</Text>
+              <Text style={styles.helper}>
+                We sent a signup verification code to {maskedEmail}. Enter it to activate your account.
+              </Text>
               <TextInput
                 accessibilityLabel="Verification code"
                 autoCapitalize="none"
@@ -157,22 +265,22 @@ export function AuthScreen() {
               />
               <View style={styles.actions}>
                 <AppButton
-                  disabled={Boolean(busy)}
+                  disabled={isBusy}
                   label={busy === "verify" ? "Checking code..." : "Verify and enter"}
-                  onPress={verifyCode}
+                  onPress={verifySignupCode}
                 />
                 <AppButton
-                  disabled={Boolean(busy)}
-                  label={busy === "send" ? "Resending..." : "Resend code"}
-                  onPress={sendCode}
+                  disabled={isBusy}
+                  label={busy === "resend" ? "Resending..." : "Resend code"}
+                  onPress={resendSignupCode}
                   tone="ghost"
                 />
                 <AppButton
-                  disabled={Boolean(busy)}
-                  label="Use another email"
+                  disabled={isBusy}
+                  label="Back to sign in"
                   onPress={() => {
                     setCode("");
-                    setStep("email");
+                    setStep("form");
                   }}
                   tone="ghost"
                 />
@@ -185,6 +293,14 @@ export function AuthScreen() {
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+function getPasswordError(password: string): string | null {
+  if (password.length < 6) {
+    return "Use at least 6 characters for the password.";
+  }
+
+  return null;
 }
 
 function isValidEmail(value: string): boolean {
