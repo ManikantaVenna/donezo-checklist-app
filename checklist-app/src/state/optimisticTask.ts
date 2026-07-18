@@ -1,6 +1,16 @@
 import type { CreateTaskInput } from "../data/checklistRepository";
 import type { ChecklistSnapshot, Task } from "../domain/types";
 
+const PENDING_TASK_ID_PREFIX = "pending-";
+
+export function createPendingTaskId(sequence: number): string {
+  return `${PENDING_TASK_ID_PREFIX}${Date.now()}-${sequence}`;
+}
+
+export function isPendingTaskId(taskId: string): boolean {
+  return taskId.startsWith(PENDING_TASK_ID_PREFIX);
+}
+
 export function createOptimisticTask(
   snapshot: ChecklistSnapshot,
   userId: string,

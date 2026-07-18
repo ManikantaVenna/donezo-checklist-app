@@ -278,15 +278,10 @@ export const supabaseChecklistRepository: ChecklistRepository = {
     });
   },
 
-  async setTaskComplete(userId, taskId, localDate, complete) {
+  async setTaskComplete(userId, taskId, localDate, complete, taskType) {
     const db = client();
-    const task = await db.from("tasks").select("type").eq("user_id", userId).eq("id", taskId).single();
 
-    throwIfError(task);
-
-    const taskRow = requireData(task.data as Pick<TaskRow, "type"> | null, "Task not found.");
-
-    if (taskRow.type === "daily") {
+    if (taskType === "daily") {
       const result = complete
         ? await db
             .from("daily_completions")

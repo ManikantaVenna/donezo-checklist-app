@@ -5,7 +5,7 @@ import { calculateCurrentStreak, getNextLocalMidnight, isCompletedOnDate, localD
 import { DEFAULT_TIMEZONE } from "../domain/timezones";
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "../data/checklistRepository";
 import { scheduleDailyReminder } from "../lib/reminders";
-import { createOptimisticTask } from "./optimisticTask";
+import { createOptimisticTask, createPendingTaskId, isPendingTaskId } from "./optimisticTask";
 
 type ChecklistContextValue = {
   snapshot: ChecklistSnapshot | null;
@@ -36,14 +36,16 @@ export function ChecklistProvider({
   const [todayLocalDate, setTodayLocalDate] = useState(() =>
     localDateKey(new Date(), DEFAULT_TIMEZONE),
   );
-  const pendingTaskIds = useRef(new Set<string>());
+  const toggleRuns = useRef(new Map<string, { desired: boolean; localDate: string }>());
   const pendingCreateSequence = useRef(0);
   const hasLoadedSnapshot = useRef(false);
   const refreshPromise = useRef<Promise<void> | null>(null);
   const refreshQueued = useRef(false);
   const realtimeRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingMutations = useRef(0);
+  const refreshQueuedAfterMutations = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const runRefresh = useCallback(async () => {
     if (refreshPromise.current) {
       refreshQueued.current = true;
       await refreshPromise.current;
@@ -58,6 +60,13 @@ export function ChecklistProvider({
         setError(null);
         try {
           const nextSnapshot = await repository.getSnapshot(userId);
+          if (pendingMutations.current > 0) {
+            // The snapshot may have been read before an in-flight write committed;
+            // applying it could revert optimistic state. Drop it and reconcile once
+            // every pending mutation has settled.
+            refreshQueuedAfterMutations.current = true;
+            return;
+          }
           hasLoadedSnapshot.current = true;
           setSnapshot(nextSnapshot);
         } catch (err) {
@@ -73,11 +82,32 @@ export function ChecklistProvider({
     } while (refreshQueued.current);
   }, [repository, userId]);
 
+  const refresh = useCallback(async () => {
+    if (pendingMutations.current > 0) {
+      refreshQueuedAfterMutations.current = true;
+      return;
+    }
+
+    await runRefresh();
+  }, [runRefresh]);
+
+  const beginMutation = useCallback(() => {
+    pendingMutations.current += 1;
+  }, []);
+
+  const endMutation = useCallback(() => {
+    pendingMutations.current -= 1;
+    if (pendingMutations.current === 0 && refreshQueuedAfterMutations.current) {
+      refreshQueuedAfterMutations.current = false;
+      void runRefresh();
+    }
+  }, [runRefresh]);
+
   const createTask = useCallback(
     async (input: CreateTaskInput) => {
       if (!input.title.trim() || !snapshot) return;
 
-      const optimisticId = `pending-${Date.now()}-${++pendingCreateSequence.current}`;
+      const optimisticId = createPendingTaskId(++pendingCreateSequence.current);
       const optimisticTask = createOptimisticTask(
         snapshot,
         userId,
@@ -90,6 +120,7 @@ export function ChecklistProvider({
         previous ? { ...previous, tasks: [...previous.tasks, optimisticTask] } : previous,
       );
 
+      beginMutation();
       try {
         const createdTask = await repository.createTask(userId, {
           ...input,
@@ -115,174 +146,200 @@ export function ChecklistProvider({
             : previous,
         );
         setError(err instanceof Error ? err.message : "Unable to create task.");
+      } finally {
+        endMutation();
       }
     },
-    [repository, snapshot, userId],
+    [beginMutation, endMutation, repository, snapshot, userId],
   );
 
   const archiveTask = useCallback(
     async (taskId: string) => {
+      if (isPendingTaskId(taskId)) return;
+
+      beginMutation();
       try {
         await repository.archiveTask(userId, taskId);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to delete task.");
         return;
+      } finally {
+        endMutation();
       }
       await refresh();
     },
-    [refresh, repository, userId],
+    [beginMutation, endMutation, refresh, repository, userId],
   );
 
   const moveTask = useCallback(
     async (taskId: string, direction: MoveDirection) => {
+      if (isPendingTaskId(taskId)) return;
+
+      beginMutation();
       try {
         await repository.moveTask(userId, taskId, direction);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to reorder task.");
         return;
+      } finally {
+        endMutation();
       }
       await refresh();
     },
-    [refresh, repository, userId],
+    [beginMutation, endMutation, refresh, repository, userId],
   );
 
   const createProject = useCallback(
     async (input: CreateProjectInput) => {
       if (!input.name.trim()) return;
+
+      beginMutation();
       try {
         await repository.createProject(userId, input);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to create project.");
         return;
+      } finally {
+        endMutation();
       }
       await refresh();
     },
-    [refresh, repository, userId],
+    [beginMutation, endMutation, refresh, repository, userId],
   );
 
   const archiveProject = useCallback(
     async (projectId: string) => {
+      beginMutation();
       try {
         await repository.archiveProject(userId, projectId);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to delete project.");
         return;
+      } finally {
+        endMutation();
       }
       await refresh();
     },
-    [refresh, repository, userId],
+    [beginMutation, endMutation, refresh, repository, userId],
   );
 
   const updateReminderPreference = useCallback(
     async (enabled: boolean, reminderTime: string) => {
+      beginMutation();
       try {
         await repository.updateReminderPreference(userId, enabled, reminderTime);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to update reminder.");
         return;
+      } finally {
+        endMutation();
       }
       await refresh();
     },
-    [refresh, repository, userId],
+    [beginMutation, endMutation, refresh, repository, userId],
   );
 
   const updateTimezone = useCallback(
     async (timezone: string) => {
+      beginMutation();
       try {
         await repository.updateTimezone(userId, timezone);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to update timezone.");
         return;
+      } finally {
+        endMutation();
       }
       await refresh();
     },
-    [refresh, repository, userId],
+    [beginMutation, endMutation, refresh, repository, userId],
+  );
+
+  const applyTaskCompletion = useCallback(
+    (task: Task, complete: boolean, localDate: string, completedAtIso: string) => {
+      setSnapshot((previous) => {
+        if (!previous) return previous;
+
+        if (task.type !== "daily") {
+          return {
+            ...previous,
+            tasks: previous.tasks.map((entry) =>
+              entry.id === task.id ? { ...entry, completedAt: complete ? completedAtIso : null } : entry,
+            ),
+          };
+        }
+
+        const hasCompletion = isCompletedOnDate(previous.dailyCompletions, task.id, localDate);
+        if (complete === hasCompletion) return previous;
+
+        return {
+          ...previous,
+          dailyCompletions: complete
+            ? [
+                ...previous.dailyCompletions,
+                {
+                  id: `${task.id}-${localDate}`,
+                  userId,
+                  taskId: task.id,
+                  localDate,
+                  completedAt: completedAtIso,
+                },
+              ]
+            : previous.dailyCompletions.filter(
+                (entry) => !(entry.taskId === task.id && entry.localDate === localDate),
+              ),
+        };
+      });
+    },
+    [userId],
   );
 
   const toggleTask = useCallback(
     async (task: Task) => {
-      if (!snapshot || pendingTaskIds.current.has(task.id)) return;
-      pendingTaskIds.current.add(task.id);
+      if (!snapshot || isPendingTaskId(task.id)) return;
 
-      const localDate = localDateKey(
-        new Date(),
-        snapshot.timezone ?? DEFAULT_TIMEZONE,
-      );
-      const previousTask = snapshot.tasks.find((entry) => entry.id === task.id);
-      const previousCompletedAt = previousTask ? previousTask.completedAt : task.completedAt;
-      const previousDailyCompletions = snapshot.dailyCompletions.filter(
-        (entry) => entry.taskId === task.id && entry.localDate === localDate,
-      );
-      const currentlyComplete =
-        task.type === "daily"
+      const localDate = localDateKey(new Date(), snapshot.timezone ?? DEFAULT_TIMEZONE);
+      const activeRun = toggleRuns.current.get(task.id);
+      const currentlyComplete = activeRun
+        ? activeRun.desired
+        : task.type === "daily"
           ? isCompletedOnDate(snapshot.dailyCompletions, task.id, localDate)
-          : Boolean(task.completedAt);
+          : Boolean(snapshot.tasks.find((entry) => entry.id === task.id)?.completedAt ?? task.completedAt);
+      const desired = !currentlyComplete;
 
-      setSnapshot((previous) => {
-        if (!previous) return previous;
+      applyTaskCompletion(task, desired, localDate, new Date().toISOString());
 
-        const hasDailyCompletion = isCompletedOnDate(previous.dailyCompletions, task.id, localDate);
-        return {
-          ...previous,
-          tasks: previous.tasks.map((entry) =>
-            entry.id === task.id && entry.type !== "daily"
-              ? { ...entry, completedAt: currentlyComplete ? null : new Date().toISOString() }
-              : entry,
-          ),
-          dailyCompletions:
-            task.type !== "daily"
-              ? previous.dailyCompletions
-              : currentlyComplete
-                ? previous.dailyCompletions.filter(
-                    (entry) => !(entry.taskId === task.id && entry.localDate === localDate),
-                  )
-                : hasDailyCompletion
-                  ? previous.dailyCompletions
-                  : [
-                      ...previous.dailyCompletions,
-                      {
-                        id: `${task.id}-${localDate}`,
-                        userId,
-                        taskId: task.id,
-                        localDate,
-                        completedAt: new Date().toISOString(),
-                      },
-                    ],
-        };
-      });
+      // A write for this task is already in flight: record the latest intent and
+      // let the running loop send it once the current request settles.
+      if (activeRun) {
+        activeRun.desired = desired;
+        activeRun.localDate = localDate;
+        return;
+      }
 
+      const run = { desired, localDate };
+      toggleRuns.current.set(task.id, run);
+      let serverComplete = currentlyComplete;
+
+      beginMutation();
       try {
-        await repository.setTaskComplete(userId, task.id, localDate, !currentlyComplete);
+        while (serverComplete !== run.desired) {
+          const target = run.desired;
+          const targetDate = run.localDate;
+          await repository.setTaskComplete(userId, task.id, targetDate, target, task.type);
+          serverComplete = target;
+        }
+        toggleRuns.current.delete(task.id);
+        endMutation();
       } catch (err) {
-        setSnapshot((current) => {
-          if (!current) return current;
-
-          return {
-            ...current,
-            tasks:
-              task.type === "daily"
-                ? current.tasks
-                : current.tasks.map((entry) =>
-                    entry.id === task.id ? { ...entry, completedAt: previousCompletedAt } : entry,
-                  ),
-            dailyCompletions:
-              task.type !== "daily"
-                ? current.dailyCompletions
-                : [
-                    ...current.dailyCompletions.filter(
-                      (entry) => !(entry.taskId === task.id && entry.localDate === localDate),
-                    ),
-                    ...previousDailyCompletions,
-                  ],
-          };
-        });
-        await refresh();
+        toggleRuns.current.delete(task.id);
+        applyTaskCompletion(task, serverComplete, run.localDate, new Date().toISOString());
+        refreshQueuedAfterMutations.current = true;
+        endMutation();
         setError(err instanceof Error ? err.message : "Unable to update task.");
-      } finally {
-        pendingTaskIds.current.delete(task.id);
       }
     },
-    [refresh, repository, snapshot, userId],
+    [applyTaskCompletion, beginMutation, endMutation, repository, snapshot, userId],
   );
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "./checklistRepository";
-import type { ChecklistSnapshot, DailyCompletion, Project, ReminderPreferences, Task } from "../domain/types";
+import type { ChecklistSnapshot, DailyCompletion, Project, ReminderPreferences, Task, TaskType } from "../domain/types";
 import { sortedCopy } from "../domain/sorting";
 
 const DEMO_USER_ID = "demo-user";
@@ -238,7 +238,13 @@ export class MockChecklistRepository implements ChecklistRepository {
     });
   }
 
-  async setTaskComplete(userId: string, taskId: string, localDate: string, complete: boolean): Promise<void> {
+  async setTaskComplete(
+    userId: string,
+    taskId: string,
+    localDate: string,
+    complete: boolean,
+    taskType: TaskType,
+  ): Promise<void> {
     const task = this.tasks.find((candidate) => candidate.userId === userId && candidate.id === taskId);
     if (!task) {
       return;
@@ -246,7 +252,7 @@ export class MockChecklistRepository implements ChecklistRepository {
 
     const completedAt = new Date().toISOString();
 
-    if (task.type === "daily") {
+    if (taskType === "daily") {
       if (complete) {
         const alreadyCompleted = this.dailyCompletions.some(
           (completion) =>

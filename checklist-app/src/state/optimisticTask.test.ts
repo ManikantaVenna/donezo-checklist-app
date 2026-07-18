@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChecklistSnapshot, Task } from "../domain/types";
-import { createOptimisticTask } from "./optimisticTask";
+import { createOptimisticTask, createPendingTaskId, isPendingTaskId } from "./optimisticTask";
 
 const baseTask: Task = {
   id: "quick-1",
@@ -57,5 +57,15 @@ describe("createOptimisticTask", () => {
 
     expect(task.sortOrder).toBe(4);
     expect(task.projectId).toBe("project-a");
+  });
+});
+
+describe("pending task ids", () => {
+  it("recognizes ids produced by createPendingTaskId", () => {
+    expect(isPendingTaskId(createPendingTaskId(7))).toBe(true);
+  });
+
+  it("does not flag persisted uuids", () => {
+    expect(isPendingTaskId("0b0f5cbe-14b8-4f81-9df5-16ad0f1b3c5d")).toBe(false);
   });
 });
