@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import { getNextReminderDate } from "../domain/reminders";
 
 const DAILY_REMINDER_IDENTIFIER_PREFIX = "daily-reset-reminder";
+const ANDROID_REMINDER_CHANNEL_ID = "daily-reminders";
 let scheduleSequence = 0;
 let scheduleOperation: Promise<void> = Promise.resolve();
 let webReminderTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -28,7 +29,9 @@ function reminderContent(unfinishedCount: number) {
   return {
     title: "Daily reset soon",
     body:
-      unfinishedCount === 1
+      unfinishedCount === 0
+        ? "Take a moment to review your Donezo checklist."
+        : unfinishedCount === 1
         ? "You have 1 unfinished daily task."
         : `You have ${unfinishedCount} unfinished daily tasks.`,
   };
@@ -83,7 +86,7 @@ async function scheduleDailyReminderForSequence(
   if (sequence !== scheduleSequence) return;
 
   const nextReminderDate = getNextReminderDate(new Date(), timezone, reminderTime);
-  if (!enabled || unfinishedCount <= 0 || !nextReminderDate) return;
+  if (!enabled || !nextReminderDate) return;
   const content = reminderContent(unfinishedCount);
 
   if (Platform.OS === "web") {
@@ -92,6 +95,13 @@ async function scheduleDailyReminderForSequence(
   }
 
   if (!Device.isDevice) return;
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync(ANDROID_REMINDER_CHANNEL_ID, {
+      name: "Daily reminders",
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+  }
 
   let permission = await Notifications.getPermissionsAsync();
   if (permission.status !== "granted") {
@@ -108,6 +118,7 @@ async function scheduleDailyReminderForSequence(
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: nextReminderDate,
+      ...(Platform.OS === "android" ? { channelId: ANDROID_REMINDER_CHANNEL_ID } : {}),
     },
   });
 }

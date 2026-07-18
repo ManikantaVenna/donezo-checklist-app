@@ -2,7 +2,7 @@
   "expo": {
     "name": "Donezo",
     "slug": "donezo",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "scheme": "donezo",
     "orientation": "portrait",
     "icon": "./assets/donezo-app-icon.png",
@@ -15,6 +15,9 @@
     "android": {
       "package": "com.mvbuilds.donezo",
       "versionCode": 1,
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#07080B",
         "foregroundImage": "./assets/donezo-android-foreground.png",

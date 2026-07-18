@@ -5,6 +5,7 @@ import {
   filterTimezoneOptions,
   findTimezoneOption,
   isSupportedTimezone,
+  millisecondsUntilNextMinute,
 } from "./timezones";
 
 describe("timezone options", () => {
@@ -35,5 +36,10 @@ describe("timezone options", () => {
     expect(filterTimezoneOptions("india").map((option) => option.id)).toContain("Asia/Kolkata");
     expect(filterTimezoneOptions("britain").map((option) => option.id)).toContain("Europe/London");
     expect(filterTimezoneOptions("America/").length).toBeGreaterThan(5);
+  });
+
+  it("aligns clock refreshes to the next minute boundary", () => {
+    expect(millisecondsUntilNextMinute(new Date("2026-07-18T23:03:00.000Z"))).toBe(60_025);
+    expect(millisecondsUntilNextMinute(new Date("2026-07-18T23:03:59.900Z"))).toBe(125);
   });
 });

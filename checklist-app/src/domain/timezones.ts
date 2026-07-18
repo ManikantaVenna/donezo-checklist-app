@@ -89,6 +89,10 @@ export function supportedTimezoneOrDefault(timezone: string | null | undefined):
   return DEFAULT_TIMEZONE;
 }
 
+export function millisecondsUntilNextMinute(date: Date): number {
+  return 60_000 - date.getSeconds() * 1_000 - date.getMilliseconds() + 25;
+}
+
 export function formatClockInTimezone(date: Date, timezone: string): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,

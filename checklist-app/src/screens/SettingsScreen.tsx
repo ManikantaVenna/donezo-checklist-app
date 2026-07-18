@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, AppState, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
 import {
   DEFAULT_TIMEZONE,
@@ -8,6 +8,7 @@ import {
   formatClockInTimezone,
   formatNextResetInTimezone,
   isSupportedTimezone,
+  millisecondsUntilNextMinute,
   supportedTimezoneOrDefault,
 } from "../domain/timezones";
 import { useChecklist } from "../state/ChecklistContext";
@@ -39,8 +40,24 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
   }, [snapshot]);
 
   useEffect(() => {
-    const interval = setInterval(() => setPreviewNow(new Date()), 30_000);
-    return () => clearInterval(interval);
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const refreshClock = () => {
+      if (timeout) clearTimeout(timeout);
+      const now = new Date();
+      setPreviewNow(now);
+      timeout = setTimeout(refreshClock, millisecondsUntilNextMinute(now));
+    };
+
+    refreshClock();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshClock();
+    });
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      subscription.remove();
+    };
   }, []);
 
   if (loading && !snapshot) {
