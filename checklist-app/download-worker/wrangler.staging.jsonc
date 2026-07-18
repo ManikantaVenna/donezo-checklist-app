@@ -1,5 +1,5 @@
 {
-  "name": "donezo-download",
+  "name": "donezo-download-staging",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-18",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,12 +9,6 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
-  "routes": [
-    {
-      "pattern": "download.mv-builds.com",
-      "custom_domain": true
-    }
-  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

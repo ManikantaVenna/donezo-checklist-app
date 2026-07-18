@@ -1,14 +1,34 @@
 # Donezo download Worker
 
-This Worker streams the current Android APK from Expo through
-`https://download.mv-builds.com` with an Android MIME type, a short filename,
-and support for resumable byte-range downloads.
+This Worker serves the verified Android APK from Cloudflare-hosted static
+assets through `https://download.mv-builds.com`. The APK is split into three
+deployment assets because Cloudflare limits each individual static asset to
+25 MiB. Users still receive one normal `Donezo-1.0.3.apk` file.
 
-The Expo artifact used by this version expires on August 1, 2026. Update
-`APK_URL` and `APK_FILENAME` in `src/index.ts` after producing a replacement
-build, then redeploy the Worker.
+The Worker implements single byte-range responses so Android Chrome can pause,
+resume, and download parallel sections without contacting Expo.
 
-## Validate and deploy
+## Prepare assets
+
+Generate the ignored deployment assets from the verified build:
+
+```powershell
+.\prepare-assets.ps1 -SourceApk "C:\path\to\Donezo-1.0.3.apk"
+```
+
+The script refuses to continue unless both the APK size and SHA-256 checksum
+match the verified production build.
+
+## Validate on staging
+
+```powershell
+npx wrangler@latest types --config wrangler.staging.jsonc
+npx tsc --project tsconfig.json
+npx wrangler@latest deploy --dry-run --config wrangler.staging.jsonc
+npx wrangler@latest deploy --config wrangler.staging.jsonc
+```
+
+## Deploy production
 
 ```powershell
 npx wrangler@latest types --config wrangler.jsonc
