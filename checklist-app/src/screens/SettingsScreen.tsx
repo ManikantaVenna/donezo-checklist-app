@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
 import {
   DEFAULT_TIMEZONE,
@@ -216,6 +216,28 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
             <AppButton label="Sign out" onPress={onSignOut} tone="ghost" />
           </View>
         ) : null}
+      </View>
+
+      <Text style={styles.sectionTitle}>About</Text>
+      <View style={styles.panel}>
+        <Text style={styles.label}>DONEZO 1.0.0</Text>
+        <Text style={styles.detail}>Simple, private checklists that stay synced across your devices.</Text>
+        <View style={styles.aboutLinks}>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL("https://donezo.mv-builds.com/privacy")}
+            style={({ pressed }) => [styles.aboutLink, pressed && styles.pressed]}
+          >
+            <Text style={styles.aboutLinkText}>Privacy policy</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL("https://donezo.mv-builds.com/support")}
+            style={({ pressed }) => [styles.aboutLink, pressed && styles.pressed]}
+          >
+            <Text style={styles.aboutLinkText}>Support</Text>
+          </Pressable>
+        </View>
       </View>
     </ScrollView>
   );
@@ -450,6 +472,26 @@ const styles = StyleSheet.create({
   },
   signOut: {
     marginTop: 14,
+  },
+  aboutLinks: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 14,
+  },
+  aboutLink: {
+    minHeight: 40,
+    justifyContent: "center",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.accentTint,
+    paddingHorizontal: 14,
+  },
+  aboutLinkText: {
+    color: colors.accentSoft,
+    fontFamily: fontFamily.black,
+    fontSize: 12,
   },
   pressed: {
     opacity: 0.78,

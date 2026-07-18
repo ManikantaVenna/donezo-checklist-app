@@ -3,18 +3,18 @@
     "name": "Donezo",
     "slug": "donezo",
     "version": "1.0.0",
+    "scheme": "donezo",
     "orientation": "portrait",
     "icon": "./assets/donezo-app-icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/donezo-splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#07080B"
-    },
+    "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mvbuilds.donezo",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.mvbuilds.donezo",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#07080B",
         "foregroundImage": "./assets/donezo-android-foreground.png",
@@ -24,10 +24,32 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/donezo-favicon.png"
+      "favicon": "./assets/donezo-favicon.png",
+      "bundler": "metro",
+      "output": "single"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/donezo-android-monochrome.png",
+          "color": "#E7B94E"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/donezo-splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#07080B",
+          "dark": {
+            "image": "./assets/donezo-splash-icon.png",
+            "backgroundColor": "#07080B"
+          }
+        }
+      ]
     ]
   }
 }

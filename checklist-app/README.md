@@ -11,15 +11,13 @@ npm run web
 
 Without Supabase env values, the app runs in demo mode with mock data.
 
-Donezo uses passwordless email authentication. New and returning users enter the same email form, receive a 6-digit code, and continue without creating or remembering a password. Supabase persists the session on each device and keeps every user’s checklist data isolated by account.
-
-The sign-in form includes a Remember me option. When enabled, Donezo keeps the user signed in on that device. When disabled, Donezo clears the saved session on the next app/browser restart.
+Donezo uses passwordless email authentication. New and returning users enter the same email form, receive a 6-digit code, and continue without creating or remembering a password. Supabase persists the session on each device and keeps every user's checklist data isolated by account.
 
 Recommended Supabase Auth settings:
 
 - Authentication > Email Templates > Magic Link: show the 6-digit `{{ .Token }}` instead of `{{ .ConfirmationURL }}`.
 - Authentication > Sign In / Providers > Email: keep Email OTP length set to `6`.
-- Authentication > URL Configuration: keep the local/dev preview URL allowed, for example `http://localhost:8081`, so reset links can return to the app during testing.
+- Authentication > URL Configuration: allow both the local preview (`http://localhost:8081`) and production site (`https://donezo.mv-builds.com`).
 - Authentication > SMTP Settings: use custom SMTP before public launch so emails come from Donezo instead of the default Supabase sender.
 
 ## Supabase
@@ -47,3 +45,10 @@ npx expo export --platform web --output-dir .expo-web-smoke
 ```
 
 Use `npm run web` for a manual development-server smoke check.
+
+## Production
+
+- Web: `npm run build:web` creates the deployable `dist/` directory.
+- Android/iOS: EAS build profiles live in `eas.json`.
+- App identifiers: `com.mvbuilds.donezo`.
+- Public privacy and support pages are copied from `public/` into every web build.
