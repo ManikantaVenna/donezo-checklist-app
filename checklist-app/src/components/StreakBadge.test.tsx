@@ -100,7 +100,7 @@ describe("StreakBadge", () => {
     const badge = renderBadge(63, { width: 900 });
     const frame = badge.root.findByProps({ accessibilityLabel: "63 day streak, Emerald tier" });
 
-    expect(flattenStyle(frame.props.style)).toMatchObject({ height: 32, width: 66 });
+    expect(flattenStyle(frame.props.style)).toMatchObject({ height: 30, width: 58 });
   });
 
   it("does not replay the shimmer on initial load", () => {
