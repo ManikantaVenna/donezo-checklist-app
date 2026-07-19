@@ -2,6 +2,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-nat
 import { isCompletedOnDate } from "../domain/dates";
 import { getDailyStreak, useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
+import { StreakBadge } from "../components/StreakBadge";
 
 export function DailyScreen() {
   const { snapshot, todayLocalDate, loading, error } = useChecklist();
@@ -49,7 +50,7 @@ export function DailyScreen() {
         routines.map((task) => (
           <View key={task.id} style={styles.routineRow}>
             <Text style={styles.routineName}>{task.title}</Text>
-            <Text style={styles.streak}>{getDailyStreak(snapshot, task.id, todayLocalDate)}d</Text>
+            <StreakBadge streak={getDailyStreak(snapshot, task.id, todayLocalDate)} />
           </View>
         ))
       )}
@@ -75,7 +76,6 @@ const styles = StyleSheet.create({
   sectionTitle: { marginTop: 28, marginBottom: 11, color: colors.text, fontFamily: fontFamily.black, fontSize: 16 },
   routineRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8, borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel2, padding: 14 },
   routineName: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fontFamily.bold, fontSize: 14 },
-  streak: { marginLeft: 12, borderRadius: radii.pill, backgroundColor: colors.accentTint, color: colors.accentSoft, fontFamily: fontFamily.black, fontSize: 11, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 6 },
   emptyCopy: { color: colors.muted, fontFamily: fontFamily.regular, fontSize: 13 },
 });
 

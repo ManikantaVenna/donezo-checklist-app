@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Task } from "../domain/types";
 import { colors, fontFamily, radii } from "../theme/tokens";
+import { StreakBadge } from "./StreakBadge";
 
 type TaskRowProps = {
   task: Task;
@@ -50,7 +51,7 @@ export function TaskRow({
           ) : null}
         </View>
       </Pressable>
-      {typeof streak === "number" ? <Text style={styles.badge}>{streak}d</Text> : null}
+      {typeof streak === "number" ? <StreakBadge streak={streak} /> : null}
       <View style={styles.actions}>
         <IconButton label={`Move ${task.title} up`} text="↑" onPress={onMoveUp} disabled={!onMoveUp || !canMoveUp} />
         <IconButton
@@ -161,18 +162,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontFamily: fontFamily.regular,
     fontSize: 11,
-  },
-  badge: {
-    minWidth: 42,
-    overflow: "hidden",
-    borderRadius: radii.pill,
-    backgroundColor: colors.accentTint,
-    color: colors.accentSoft,
-    fontFamily: fontFamily.black,
-    fontSize: 11,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    textAlign: "center",
   },
   actions: {
     flexDirection: "row",
