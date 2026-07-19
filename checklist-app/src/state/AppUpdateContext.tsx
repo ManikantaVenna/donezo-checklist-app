@@ -8,6 +8,7 @@ import { fetchLatestAndroidRelease } from "../lib/appReleases";
 const LAST_ATTEMPT_KEY = "donezo:update:last-attempt-at";
 const CACHED_RELEASE_KEY = "donezo:update:cached-release";
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+const storageWriteQueues = new Map<string, Promise<void>>();
 
 export type AppUpdateContextValue = {
   installedVersion: string;
@@ -49,12 +50,23 @@ async function getStoredValue(key: string): Promise<string | null> {
   }
 }
 
-async function setStoredValue(key: string, value: string): Promise<void> {
-  try {
-    await AsyncStorage.setItem(key, value);
-  } catch {
-    // Update metadata is optional and must never interrupt the app.
-  }
+function setStoredValue(key: string, value: string): Promise<void> {
+  const previousWrite = storageWriteQueues.get(key) ?? Promise.resolve();
+  const currentWrite = previousWrite
+    .catch(() => undefined)
+    .then(async () => {
+      try {
+        await AsyncStorage.setItem(key, value);
+      } catch {
+        // Update metadata is optional and must never interrupt the app.
+      }
+    });
+
+  storageWriteQueues.set(key, currentWrite);
+  void currentWrite.then(() => {
+    if (storageWriteQueues.get(key) === currentWrite) storageWriteQueues.delete(key);
+  });
+  return currentWrite;
 }
 
 export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
@@ -71,25 +83,6 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
     let checkInFlight = false;
     let lastAttemptAt: number | null = null;
     let selectedRelease: AppReleaseManifest | null = null;
-    let pendingCacheRelease: AppReleaseManifest | null = null;
-    let cacheWriteInFlight = false;
-
-    const persistSelectedRelease = (release: AppReleaseManifest) => {
-      if (pendingCacheRelease === null || release.buildVersion > pendingCacheRelease.buildVersion) {
-        pendingCacheRelease = release;
-      }
-      if (cacheWriteInFlight) return;
-
-      cacheWriteInFlight = true;
-      void (async () => {
-        while (pendingCacheRelease !== null) {
-          const nextRelease = pendingCacheRelease;
-          pendingCacheRelease = null;
-          await setStoredValue(CACHED_RELEASE_KEY, JSON.stringify(nextRelease));
-        }
-        cacheWriteInFlight = false;
-      })();
-    };
 
     const selectRelease = (release: AppReleaseManifest, persist: boolean) => {
       if (
@@ -102,7 +95,7 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
 
       selectedRelease = release;
       setKnownRelease(release);
-      if (persist) persistSelectedRelease(release);
+      if (persist) void setStoredValue(CACHED_RELEASE_KEY, JSON.stringify(release));
     };
 
     const checkForUpdate = async () => {
@@ -113,9 +106,11 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
 
       checkInFlight = true;
       lastAttemptAt = attemptedAt;
-      await setStoredValue(LAST_ATTEMPT_KEY, String(attemptedAt));
 
       try {
+        await setStoredValue(LAST_ATTEMPT_KEY, String(attemptedAt));
+        if (!mounted) return;
+
         const release = await fetchLatestAndroidRelease();
         if (!mounted || release === null) return;
 

@@ -71,10 +71,12 @@ function releaseWithBuild(buildVersion: number): AppReleaseManifest {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 let renderer: ReactTestRenderer | null = null;
@@ -218,6 +220,28 @@ describe("AppUpdateProvider", () => {
     });
   });
 
+  it("does not fetch after unmount while the attempt timestamp write was pending", async () => {
+    const timestampWrite = deferred<void>();
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key) => {
+      if (key === LAST_ATTEMPT_KEY) return timestampWrite.promise;
+      return Promise.resolve();
+    });
+
+    await renderProvider();
+    expect(fetchLatestAndroidRelease).not.toHaveBeenCalled();
+
+    act(() => renderer!.unmount());
+    renderer = null;
+    timestampWrite.resolve();
+    await act(async () => {
+      await timestampWrite.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchLatestAndroidRelease).not.toHaveBeenCalled();
+  });
+
   it("serializes cache writes so a delayed older write cannot replace a newer release", async () => {
     const newerRelease = releaseWithBuild(12);
     const firstCacheWrite = deferred<void>();
@@ -257,6 +281,147 @@ describe("AppUpdateProvider", () => {
     firstCacheWrite.resolve();
     await act(async () => {
       await firstCacheWrite.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(cacheWriteCount).toBe(2);
+    expect(persistedCache).toBe(JSON.stringify(newerRelease));
+  });
+
+  it("orders cache writes across unmount and remount so the newer provider wins", async () => {
+    const newerRelease = releaseWithBuild(12);
+    const oldCacheWrite = deferred<void>();
+    const storage = new Map<string, string>();
+    let cacheWriteCount = 0;
+    vi.mocked(fetchLatestAndroidRelease)
+      .mockResolvedValueOnce(release)
+      .mockResolvedValueOnce(newerRelease);
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async (key) => storage.get(key) ?? null);
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key, value) => {
+      if (key !== CACHED_RELEASE_KEY) {
+        storage.set(key, value);
+        return Promise.resolve();
+      }
+
+      cacheWriteCount += 1;
+      if (cacheWriteCount === 1) {
+        return oldCacheWrite.promise.then(() => {
+          storage.set(key, value);
+        });
+      }
+
+      storage.set(key, value);
+      return Promise.resolve();
+    });
+
+    const oldUpdates = await renderProvider();
+    expect(oldUpdates.value.availableRelease).toEqual(release);
+    expect(cacheWriteCount).toBe(1);
+
+    act(() => renderer!.unmount());
+    renderer = null;
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    const newUpdates = await renderProvider();
+
+    expect(newUpdates.value.availableRelease).toEqual(newerRelease);
+    expect(cacheWriteCount).toBe(1);
+
+    oldCacheWrite.resolve();
+    await act(async () => {
+      await oldCacheWrite.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(cacheWriteCount).toBe(2);
+    expect(storage.get(CACHED_RELEASE_KEY)).toBe(JSON.stringify(newerRelease));
+    expect(storage.get(LAST_ATTEMPT_KEY)).toBe(String(NOW.getTime() + SIX_HOURS_MS));
+  });
+
+  it("orders attempt timestamps across unmount and remount before the new provider fetches", async () => {
+    const newerRelease = releaseWithBuild(12);
+    const oldTimestampWrite = deferred<void>();
+    const storage = new Map<string, string>();
+    let timestampWriteCount = 0;
+    vi.mocked(fetchLatestAndroidRelease).mockResolvedValue(newerRelease);
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async (key) => storage.get(key) ?? null);
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key, value) => {
+      if (key !== LAST_ATTEMPT_KEY) {
+        storage.set(key, value);
+        return Promise.resolve();
+      }
+
+      timestampWriteCount += 1;
+      if (timestampWriteCount === 1) {
+        return oldTimestampWrite.promise.then(() => {
+          storage.set(key, value);
+        });
+      }
+
+      storage.set(key, value);
+      return Promise.resolve();
+    });
+
+    await renderProvider();
+    expect(fetchLatestAndroidRelease).not.toHaveBeenCalled();
+    expect(timestampWriteCount).toBe(1);
+
+    act(() => renderer!.unmount());
+    renderer = null;
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    const newUpdates = await renderProvider();
+
+    expect(fetchLatestAndroidRelease).not.toHaveBeenCalled();
+    expect(timestampWriteCount).toBe(1);
+
+    oldTimestampWrite.resolve();
+    await act(async () => {
+      await oldTimestampWrite.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(timestampWriteCount).toBe(2);
+    expect(fetchLatestAndroidRelease).toHaveBeenCalledTimes(1);
+    expect(newUpdates.value.availableRelease).toEqual(newerRelease);
+    expect(storage.get(LAST_ATTEMPT_KEY)).toBe(String(NOW.getTime() + SIX_HOURS_MS));
+  });
+
+  it("continues an ordered cache queue after an older write fails", async () => {
+    const newerRelease = releaseWithBuild(12);
+    const failedCacheWrite = deferred<void>();
+    let persistedCache: string | null = null;
+    let cacheWriteCount = 0;
+    vi.mocked(fetchLatestAndroidRelease)
+      .mockResolvedValueOnce(release)
+      .mockResolvedValueOnce(newerRelease);
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key, value) => {
+      if (key !== CACHED_RELEASE_KEY) return Promise.resolve();
+
+      cacheWriteCount += 1;
+      if (cacheWriteCount === 1) return failedCacheWrite.promise;
+      persistedCache = value;
+      return Promise.resolve();
+    });
+
+    const updates = await renderProvider();
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    await act(async () => {
+      native.appStateListener?.("active");
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(updates.value.availableRelease).toEqual(newerRelease);
+
+    failedCacheWrite.reject(new Error("storage unavailable"));
+    await act(async () => {
+      await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
