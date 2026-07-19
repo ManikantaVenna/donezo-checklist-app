@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { AppUpdateNotice } from "./src/components/AppUpdateNotice";
 import { mockChecklistRepository } from "./src/data/mockChecklistRepository";
 import { supabaseChecklistRepository } from "./src/data/supabaseChecklistRepository";
 import { hasSupabaseEnv } from "./src/env";
@@ -12,6 +13,7 @@ import { DailyScreen } from "./src/screens/DailyScreen";
 import { ProjectsScreen } from "./src/screens/ProjectsScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { TodayScreen } from "./src/screens/TodayScreen";
+import { AppUpdateProvider } from "./src/state/AppUpdateContext";
 import { ChecklistProvider } from "./src/state/ChecklistContext";
 import { useAppFonts } from "./src/theme/fonts";
 import { colors, fontFamily } from "./src/theme/tokens";
@@ -28,7 +30,10 @@ const tabs: Array<{ id: Tab; label: string }> = [
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <AppUpdateProvider>
+        <AppContent />
+        <AppUpdateNotice />
+      </AppUpdateProvider>
     </SafeAreaProvider>
   );
 }

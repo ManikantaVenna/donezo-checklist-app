@@ -11,6 +11,7 @@ import {
   millisecondsUntilNextMinute,
   supportedTimezoneOrDefault,
 } from "../domain/timezones";
+import { useAppUpdate, useKnownAppRelease } from "../state/AppUpdateContext";
 import { useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
@@ -22,6 +23,8 @@ type SettingsScreenProps = {
 
 export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSignOut }: SettingsScreenProps) {
   const { snapshot, loading, error, updateReminderPreference, updateTimezone } = useChecklist();
+  const { installedVersion, openDownloadPage } = useAppUpdate();
+  const knownRelease = useKnownAppRelease();
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [reminderTime, setReminderTime] = useState("23:00");
@@ -237,9 +240,18 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
 
       <Text style={styles.sectionTitle}>About</Text>
       <View style={styles.panel}>
-        <Text style={styles.label}>DONEZO 1.0.0</Text>
+        <Text style={styles.label}>DONEZO {installedVersion}</Text>
         <Text style={styles.detail}>Simple, private checklists that stay synced across your devices.</Text>
         <View style={styles.aboutLinks}>
+          {knownRelease ? (
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => void openDownloadPage()}
+              style={({ pressed }) => [styles.aboutLink, pressed && styles.pressed]}
+            >
+              <Text style={styles.aboutLinkText}>Update available: {knownRelease.version}</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             accessibilityRole="link"
             onPress={() => void Linking.openURL("https://donezo.mv-builds.com/privacy")}
