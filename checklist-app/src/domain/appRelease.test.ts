@@ -32,7 +32,11 @@ describe("parseAppReleaseManifest", () => {
     { ...validManifest, publishedAt: "2026-02-30T12:00:00.000Z" },
     { ...validManifest, downloadPageUrl: "http://donezo.mv-builds.com/download" },
     { ...validManifest, downloadPageUrl: "https://example.com/download" },
+    { ...validManifest, downloadPageUrl: "https://user:password@donezo.mv-builds.com/download" },
+    { ...validManifest, downloadPageUrl: "blob:https://donezo.mv-builds.com/download" },
     { ...validManifest, apkUrl: "https://example.com/app.apk" },
+    { ...validManifest, apkUrl: "https://user:password@downloads.mv-builds.com/app.apk" },
+    { ...validManifest, apkUrl: "blob:https://downloads.mv-builds.com/app.apk" },
     { ...validManifest, fileSizeBytes: 0 },
     { ...validManifest, sha256: "A".repeat(64) },
     { ...validManifest, sha256: "not-a-checksum" },
@@ -47,5 +51,16 @@ describe("isNewerAndroidRelease", () => {
   it("compares the native integer build instead of semantic text", () => {
     expect(isNewerAndroidRelease(validManifest, "8")).toBe(true);
     expect(isNewerAndroidRelease(validManifest, "9")).toBe(false);
+  });
+
+  it.each([null, "", "   ", "1e1", "0x8", "9007199254740992", "0", "00", "-0", "-1", "+1", "1.0"])(
+    "rejects an invalid installed build %j",
+    (installedBuild) => {
+      expect(isNewerAndroidRelease(validManifest, installedBuild)).toBe(false);
+    },
+  );
+
+  it.each(["1", "8", "0008", "9007199254740991"])("accepts a positive decimal installed build %s", (installedBuild) => {
+    expect(isNewerAndroidRelease(validManifest, installedBuild)).toBe(installedBuild !== "9007199254740991");
   });
 });

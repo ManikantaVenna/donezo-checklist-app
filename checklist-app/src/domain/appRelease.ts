@@ -14,6 +14,7 @@ const DOWNLOAD_PAGE_ORIGIN = "https://donezo.mv-builds.com";
 const APK_ORIGIN = "https://downloads.mv-builds.com";
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const SHA_256 = /^[a-f0-9]{64}$/;
+const POSITIVE_DECIMAL_BUILD = /^\d+$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -23,7 +24,8 @@ function hasOrigin(value: unknown, expectedOrigin: string): value is string {
   if (typeof value !== "string") return false;
 
   try {
-    return new URL(value).origin === expectedOrigin;
+    const url = new URL(value);
+    return url.protocol === "https:" && url.username === "" && url.password === "" && url.origin === expectedOrigin;
   } catch {
     return false;
   }
@@ -77,6 +79,8 @@ export function parseAppReleaseManifest(value: unknown): AppReleaseManifest | nu
 }
 
 export function isNewerAndroidRelease(release: AppReleaseManifest, installedBuild: string | null): boolean {
+  if (installedBuild === null || !POSITIVE_DECIMAL_BUILD.test(installedBuild)) return false;
+
   const current = Number(installedBuild);
-  return Number.isSafeInteger(current) && release.buildVersion > current;
+  return Number.isSafeInteger(current) && current > 0 && release.buildVersion > current;
 }
