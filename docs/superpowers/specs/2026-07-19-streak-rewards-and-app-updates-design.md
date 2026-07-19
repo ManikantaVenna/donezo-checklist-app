@@ -119,6 +119,9 @@ The app reads `https://donezo.mv-builds.com/releases/android/latest.json`. Its c
   "buildVersion": 9,
   "publishedAt": "2026-07-19T00:00:00Z",
   "downloadPageUrl": "https://donezo.mv-builds.com/download",
+  "apkUrl": "https://downloads.mv-builds.com/Donezo-1.0.6-build-9.apk",
+  "fileSizeBytes": 39384576,
+  "sha256": "64 lowercase hexadecimal characters",
   "releaseNotes": [
     "Streaks remain visible during today's completion window.",
     "Premium streak reward tiers through 100 days."
@@ -126,7 +129,7 @@ The app reads `https://donezo.mv-builds.com/releases/android/latest.json`. Its c
 }
 ```
 
-The integer native build number is the authoritative comparison. Semantic version text is display-only.
+The integer native build number is the authoritative comparison. Semantic version text is display-only. The app opens only `downloadPageUrl`; `apkUrl`, `fileSizeBytes`, and `sha256` are used by the human-facing download page.
 
 ### Check policy and failure handling
 
