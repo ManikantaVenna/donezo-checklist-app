@@ -59,7 +59,7 @@ The permanent download page is `https://donezo.mv-builds.com/download`. Publish 
 
 1. Create and verify the signed Android build with a higher build number.
 2. Compute and record its SHA-256 checksum.
-3. Upload the APK to `downloads.mv-builds.com` with an immutable filename.
+3. Upload the APK to R2 at `downloads.mv-builds.com` with an immutable filename.
 4. Deploy the web page changes.
 5. Independently verify the download endpoint, file size, checksum, and installation.
 6. Publish `releases/android/latest.json` last.
