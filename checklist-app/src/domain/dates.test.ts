@@ -52,8 +52,29 @@ describe("calculateCurrentStreak", () => {
   });
 
   it("returns zero when today was missed", () => {
-    const completions = [completion("daily-1", "2026-07-16")];
+    const completions = [completion("daily-1", "2026-07-15")];
     expect(calculateCurrentStreak(completions, "daily-1", "2026-07-17")).toBe(0);
+  });
+
+  it("keeps yesterday's consecutive streak active while today is still open", () => {
+    const completions = [
+      completion("daily-1", "2026-07-18"),
+      completion("daily-1", "2026-07-17"),
+    ];
+    expect(calculateCurrentStreak(completions, "daily-1", "2026-07-19")).toBe(2);
+  });
+
+  it("resets after a complete local day is missed", () => {
+    const completions = [completion("daily-1", "2026-07-17")];
+    expect(calculateCurrentStreak(completions, "daily-1", "2026-07-19")).toBe(0);
+  });
+
+  it("increments immediately when today is completed", () => {
+    const completions = [
+      completion("daily-1", "2026-07-19"),
+      completion("daily-1", "2026-07-18"),
+    ];
+    expect(calculateCurrentStreak(completions, "daily-1", "2026-07-19")).toBe(2);
   });
 });
 

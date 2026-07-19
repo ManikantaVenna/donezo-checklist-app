@@ -77,8 +77,11 @@ export function calculateCurrentStreak(completions: DailyCompletion[], taskId: s
   const completedDates = new Set(
     completions.filter((completion) => completion.taskId === taskId).map((completion) => completion.localDate),
   );
+  let cursor = completedDates.has(todayLocalDate)
+    ? todayLocalDate
+    : shiftLocalDateKey(todayLocalDate, -1);
   let streak = 0;
-  let cursor = todayLocalDate;
+
   while (completedDates.has(cursor)) {
     streak += 1;
     cursor = shiftLocalDateKey(cursor, -1);
