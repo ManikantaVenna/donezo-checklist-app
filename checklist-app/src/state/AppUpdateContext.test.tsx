@@ -324,9 +324,8 @@ describe("AppUpdateProvider", () => {
     renderer = null;
     vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
     const newUpdates = await renderProvider();
-
-    expect(newUpdates.value.availableRelease).toEqual(newerRelease);
-    expect(cacheWriteCount).toBe(1);
+    const fetchCountBeforeCacheSettled = vi.mocked(fetchLatestAndroidRelease).mock.calls.length;
+    const releaseBeforeCacheSettled = newUpdates.value.availableRelease;
 
     oldCacheWrite.resolve();
     await act(async () => {
@@ -334,11 +333,140 @@ describe("AppUpdateProvider", () => {
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
+    expect(fetchCountBeforeCacheSettled).toBe(1);
+    expect(releaseBeforeCacheSettled).toBeNull();
+    expect(newUpdates.value.availableRelease).toEqual(newerRelease);
     expect(cacheWriteCount).toBe(2);
     expect(storage.get(CACHED_RELEASE_KEY)).toBe(JSON.stringify(newerRelease));
     expect(storage.get(LAST_ATTEMPT_KEY)).toBe(String(NOW.getTime() + SIX_HOURS_MS));
+  });
+
+  it("waits for a higher release from the old provider before the remount considers a lower network build", async () => {
+    const higherRelease = releaseWithBuild(12);
+    const lowerRelease = releaseWithBuild(9);
+    const oldCacheWrite = deferred<void>();
+    const storage = new Map<string, string>();
+    let cacheWriteCount = 0;
+    vi.mocked(fetchLatestAndroidRelease)
+      .mockResolvedValueOnce(higherRelease)
+      .mockResolvedValueOnce(lowerRelease);
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async (key) => storage.get(key) ?? null);
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key, value) => {
+      if (key !== CACHED_RELEASE_KEY) {
+        storage.set(key, value);
+        return Promise.resolve();
+      }
+
+      cacheWriteCount += 1;
+      if (cacheWriteCount === 1) {
+        return oldCacheWrite.promise.then(() => {
+          storage.set(key, value);
+        });
+      }
+
+      storage.set(key, value);
+      return Promise.resolve();
+    });
+
+    const oldUpdates = await renderProvider();
+    expect(oldUpdates.value.availableRelease).toEqual(higherRelease);
+    expect(cacheWriteCount).toBe(1);
+
+    act(() => renderer!.unmount());
+    renderer = null;
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    const newUpdates = await renderProvider();
+    const fetchCountBeforeCacheSettled = vi.mocked(fetchLatestAndroidRelease).mock.calls.length;
+    const releaseBeforeCacheSettled = newUpdates.value.availableRelease;
+
+    oldCacheWrite.resolve();
+    await act(async () => {
+      await oldCacheWrite.promise;
+      for (let index = 0; index < 10; index += 1) await Promise.resolve();
+    });
+
+    expect(fetchCountBeforeCacheSettled).toBe(1);
+    expect(releaseBeforeCacheSettled).toBeNull();
+    expect(fetchLatestAndroidRelease).toHaveBeenCalledTimes(2);
+    expect(newUpdates.value.availableRelease).toEqual(higherRelease);
+    expect(storage.get(CACHED_RELEASE_KEY)).toBe(JSON.stringify(higherRelease));
+    expect(cacheWriteCount).toBe(1);
+  });
+
+  it("continues remount initialization when the prior cache persistence fails", async () => {
+    const higherRelease = releaseWithBuild(12);
+    const lowerRelease = releaseWithBuild(9);
+    const failedOldCacheWrite = deferred<void>();
+    const storage = new Map<string, string>();
+    let cacheWriteCount = 0;
+    vi.mocked(fetchLatestAndroidRelease)
+      .mockResolvedValueOnce(higherRelease)
+      .mockResolvedValueOnce(lowerRelease);
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async (key) => storage.get(key) ?? null);
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key, value) => {
+      if (key !== CACHED_RELEASE_KEY) {
+        storage.set(key, value);
+        return Promise.resolve();
+      }
+
+      cacheWriteCount += 1;
+      if (cacheWriteCount === 1) return failedOldCacheWrite.promise;
+      storage.set(key, value);
+      return Promise.resolve();
+    });
+
+    await renderProvider();
+    act(() => renderer!.unmount());
+    renderer = null;
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    const newUpdates = await renderProvider();
+    const fetchCountBeforeCacheSettled = vi.mocked(fetchLatestAndroidRelease).mock.calls.length;
+    const releaseBeforeCacheSettled = newUpdates.value.availableRelease;
+
+    failedOldCacheWrite.reject(new Error("cache unavailable"));
+    await act(async () => {
+      for (let index = 0; index < 10; index += 1) await Promise.resolve();
+    });
+
+    expect(fetchCountBeforeCacheSettled).toBe(1);
+    expect(releaseBeforeCacheSettled).toBeNull();
+    expect(fetchLatestAndroidRelease).toHaveBeenCalledTimes(2);
+    expect(newUpdates.value.availableRelease).toEqual(lowerRelease);
+    expect(storage.get(CACHED_RELEASE_KEY)).toBe(JSON.stringify(lowerRelease));
+    expect(cacheWriteCount).toBe(2);
+  });
+
+  it("stops remount initialization after unmount while waiting for the prior cache", async () => {
+    const oldCacheWrite = deferred<void>();
+    vi.mocked(fetchLatestAndroidRelease)
+      .mockResolvedValueOnce(releaseWithBuild(12))
+      .mockResolvedValueOnce(releaseWithBuild(9));
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key) => {
+      if (key === CACHED_RELEASE_KEY) return oldCacheWrite.promise;
+      return Promise.resolve();
+    });
+
+    await renderProvider();
+    act(() => renderer!.unmount());
+    renderer = null;
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    await renderProvider();
+    act(() => renderer!.unmount());
+    renderer = null;
+    const fetchCountBeforeCacheSettled = vi.mocked(fetchLatestAndroidRelease).mock.calls.length;
+
+    oldCacheWrite.resolve();
+    await act(async () => {
+      await oldCacheWrite.promise;
+      for (let index = 0; index < 10; index += 1) await Promise.resolve();
+    });
+
+    expect(fetchCountBeforeCacheSettled).toBe(1);
+    expect(fetchLatestAndroidRelease).toHaveBeenCalledTimes(1);
   });
 
   it("orders attempt timestamps across unmount and remount before the new provider fetches", async () => {

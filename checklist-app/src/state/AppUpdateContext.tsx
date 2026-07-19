@@ -69,6 +69,17 @@ function setStoredValue(key: string, value: string): Promise<void> {
   return currentWrite;
 }
 
+async function waitForStoredWrites(key: string): Promise<void> {
+  const pendingWrite = storageWriteQueues.get(key);
+  if (pendingWrite === undefined) return;
+
+  try {
+    await pendingWrite;
+  } catch {
+    // Queued persistence is best-effort and must never deadlock initialization.
+  }
+}
+
 export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
   const installedVersion = Application.nativeApplicationVersion ?? "Unknown";
   const installedBuildVersion = Application.nativeBuildVersion;
@@ -83,10 +94,12 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
     let checkInFlight = false;
     let lastAttemptAt: number | null = null;
     let selectedRelease: AppReleaseManifest | null = null;
+    let cacheReady = false;
 
     const selectRelease = (release: AppReleaseManifest, persist: boolean) => {
       if (
         !mounted ||
+        !cacheReady ||
         !isNewerAndroidRelease(release, installedBuildVersion) ||
         (selectedRelease !== null && selectedRelease.buildVersion >= release.buildVersion)
       ) {
@@ -124,7 +137,12 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
     };
 
     const initialize = async () => {
+      await waitForStoredWrites(CACHED_RELEASE_KEY);
+      if (!mounted) return;
+      cacheReady = true;
+
       const cachedValue = await getStoredValue(CACHED_RELEASE_KEY);
+      if (!mounted) return;
       const cachedRelease = parseCachedRelease(cachedValue);
       if (cachedRelease !== null) selectRelease(cachedRelease, false);
 
