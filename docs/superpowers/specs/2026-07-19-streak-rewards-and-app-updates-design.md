@@ -1,7 +1,7 @@
 # Donezo Streak Rewards and App Updates Design
 
 **Date:** 2026-07-19  
-**Status:** Approved visual direction; awaiting written-spec review  
+**Status:** Approved for implementation  
 **App:** Donezo  
 **Current release:** 1.0.5, Android build 8
 
