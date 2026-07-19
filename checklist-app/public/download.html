@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#07080b" />
+    <meta name="description" content="Download the latest signed Android release of Donezo." />
+    <title>Download Donezo for Android</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #07080b; color: #f7f3e8; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: radial-gradient(circle at 78% -12%, #3a2b0b 0, transparent 33%), #07080b; }
+      main { width: min(780px, calc(100% - 40px)); margin: 0 auto; padding: 64px 0 80px; }
+      a { color: #e7b94e; }
+      .brand { color: #e7b94e; font-size: 12px; font-weight: 900; letter-spacing: .16em; }
+      h1 { margin: 14px 0 12px; font-size: clamp(38px, 8vw, 62px); line-height: .98; letter-spacing: -.045em; }
+      .lede { max-width: 600px; margin: 0; color: #b8b4aa; font-size: 17px; line-height: 1.65; }
+      .card { margin-top: 32px; border: 1px solid #3a3322; border-radius: 22px; background: linear-gradient(145deg, #151519, #101116); box-shadow: 0 18px 60px #0005; padding: 28px; }
+      .eyebrow { margin: 0 0 8px; color: #f0d487; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+      .release-title { margin: 0; font-size: clamp(25px, 5vw, 34px); line-height: 1.15; }
+      .details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 26px 0 0; }
+      .details div { min-width: 0; border-top: 1px solid #2d2a22; padding-top: 12px; }
+      dt { color: #88877f; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+      dd { margin: 5px 0 0; color: #f7f3e8; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
+      .checksum { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+      h2 { margin: 30px 0 10px; color: #f0d487; font-size: 18px; }
+      ul { margin: 0; padding-left: 20px; color: #c4c0b5; }
+      li { margin: 7px 0; line-height: 1.55; }
+      .download-button { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; margin-top: 30px; border-radius: 13px; background: linear-gradient(135deg, #f6d77f, #c58e22); color: #171207; font-weight: 900; text-align: center; text-decoration: none; transition: transform .16s ease, filter .16s ease; }
+      .download-button:not([aria-disabled="true"]):hover { filter: brightness(1.08); transform: translateY(-1px); }
+      .download-button[aria-disabled="true"] { cursor: not-allowed; background: #292821; color: #949188; pointer-events: none; }
+      .status { min-height: 24px; margin: 14px 0 0; color: #a8a499; font-size: 14px; line-height: 1.55; }
+      .status[data-state="error"] { color: #d4c4a1; }
+      .footnote { margin: 28px 0 0; color: #89877f; font-size: 13px; line-height: 1.6; }
+      @media (max-width: 520px) { main { width: min(100% - 28px, 780px); padding-top: 38px; } .card { padding: 21px; border-radius: 18px; } .details { grid-template-columns: 1fr; gap: 14px; } }
+    </style>
+    <script src="/download.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <div class="brand">DONEZO</div>
+      <h1>Download Donezo</h1>
+      <p class="lede">The newest signed Android build, with its release details and checksum in one dependable place.</p>
+      <section class="card" aria-labelledby="release-heading">
+        <p class="eyebrow">Latest Android release</p>
+        <h2 class="release-title" id="release-heading">Version <span id="version">—</span></h2>
+        <dl class="details">
+          <div><dt>Build</dt><dd id="build">—</dd></div>
+          <div><dt>Published</dt><dd id="published-at">—</dd></div>
+          <div><dt>File size</dt><dd id="file-size">—</dd></div>
+          <div><dt>SHA-256</dt><dd class="checksum" id="sha256">—</dd></div>
+        </dl>
+        <h2>What’s new</h2>
+        <ul id="release-notes"><li>Release details will appear here when the latest signed build is ready.</li></ul>
+        <a class="download-button" id="download-button" aria-disabled="true">Preparing latest release...</a>
+        <p class="status" id="status" role="status" aria-live="polite">Checking the latest Donezo release.</p>
+      </section>
+      <p class="footnote">Android will ask you to confirm the installation. Installing a newer Donezo build keeps your account and synced checklist data.</p>
+      <p class="footnote"><a href="/support">Need help?</a> · <a href="/privacy">Privacy policy</a> · <a href="/">Return to Donezo</a></p>
+    </main>
+  </body>
+</html>

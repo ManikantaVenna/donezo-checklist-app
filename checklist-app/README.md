@@ -52,3 +52,16 @@ Use `npm run web` for a manual development-server smoke check.
 - Android/iOS: EAS build profiles live in `eas.json`.
 - App identifiers: `com.mvbuilds.donezo`.
 - Public privacy and support pages are copied from `public/` into every web build.
+
+### Android release publication order
+
+The permanent download page is `https://donezo.mv-builds.com/download`. Publish a release in this order so nobody receives an update notice before its APK is available:
+
+1. Create and verify the signed Android build with a higher build number.
+2. Compute and record its SHA-256 checksum.
+3. Upload the APK to `downloads.mv-builds.com` with an immutable filename.
+4. Deploy the web page changes.
+5. Independently verify the download endpoint, file size, checksum, and installation.
+6. Publish `releases/android/latest.json` last.
+
+Do not create or deploy a release manifest for a build that has not completed those prior steps.
