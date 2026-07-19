@@ -60,6 +60,15 @@ const release: AppReleaseManifest = {
   releaseNotes: ["Streaks stay visible.", "Premium reward tiers."],
 };
 
+function releaseWithBuild(buildVersion: number): AppReleaseManifest {
+  return {
+    ...release,
+    version: `1.0.${buildVersion}`,
+    buildVersion,
+    apkUrl: `https://downloads.mv-builds.com/Donezo-build-${buildVersion}.apk`,
+  };
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
@@ -149,6 +158,36 @@ describe("AppUpdateProvider", () => {
     });
   });
 
+  it("keeps a higher cached release when the network returns a lower newer build", async () => {
+    const cachedRelease = releaseWithBuild(12);
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
+      if (key === CACHED_RELEASE_KEY) return JSON.stringify(cachedRelease);
+      return null;
+    });
+    vi.mocked(fetchLatestAndroidRelease).mockResolvedValue(releaseWithBuild(9));
+
+    const updates = await renderProvider();
+
+    expect(updates.value.availableRelease).toEqual(cachedRelease);
+    expect(updates.knownRelease).toEqual(cachedRelease);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(CACHED_RELEASE_KEY, JSON.stringify(releaseWithBuild(9)));
+  });
+
+  it("does not overwrite a higher cached release with a network build that is not newer than installed", async () => {
+    const cachedRelease = releaseWithBuild(12);
+    const installedRelease = releaseWithBuild(8);
+    vi.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
+      if (key === CACHED_RELEASE_KEY) return JSON.stringify(cachedRelease);
+      return null;
+    });
+    vi.mocked(fetchLatestAndroidRelease).mockResolvedValue(installedRelease);
+
+    const updates = await renderProvider();
+
+    expect(updates.value.availableRelease).toEqual(cachedRelease);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(CACHED_RELEASE_KEY, JSON.stringify(installedRelease));
+  });
+
   it("checks once at startup, caches a newer release, and dismisses only the notice", async () => {
     const updates = await renderProvider();
 
@@ -177,6 +216,54 @@ describe("AppUpdateProvider", () => {
     await act(async () => {
       await cacheWrite.promise;
     });
+  });
+
+  it("serializes cache writes so a delayed older write cannot replace a newer release", async () => {
+    const newerRelease = releaseWithBuild(12);
+    const firstCacheWrite = deferred<void>();
+    let cacheWriteCount = 0;
+    let persistedCache: string | null = null;
+    vi.mocked(fetchLatestAndroidRelease)
+      .mockResolvedValueOnce(release)
+      .mockResolvedValueOnce(newerRelease);
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key, value) => {
+      if (key !== CACHED_RELEASE_KEY) return Promise.resolve();
+
+      cacheWriteCount += 1;
+      if (cacheWriteCount === 1) {
+        return firstCacheWrite.promise.then(() => {
+          persistedCache = value;
+        });
+      }
+
+      persistedCache = value;
+      return Promise.resolve();
+    });
+
+    const updates = await renderProvider();
+    expect(updates.value.availableRelease).toEqual(release);
+
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    await act(async () => {
+      native.appStateListener?.("active");
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(updates.value.availableRelease).toEqual(newerRelease);
+    expect(cacheWriteCount).toBe(1);
+
+    firstCacheWrite.resolve();
+    await act(async () => {
+      await firstCacheWrite.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(cacheWriteCount).toBe(2);
+    expect(persistedCache).toBe(JSON.stringify(newerRelease));
   });
 
   it("throttles foreground checks for six hours and coalesces repeated active events", async () => {
@@ -226,6 +313,34 @@ describe("AppUpdateProvider", () => {
     expect(vi.mocked(AsyncStorage.setItem).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(fetchLatestAndroidRelease).mock.invocationCallOrder[0],
     );
+  });
+
+  it("uses the in-memory throttle when timestamp storage fails", async () => {
+    vi.mocked(AsyncStorage.getItem).mockRejectedValue(new Error("storage read failed"));
+    vi.mocked(AsyncStorage.setItem).mockRejectedValue(new Error("storage write failed"));
+
+    await renderProvider();
+    expect(fetchLatestAndroidRelease).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS - 1);
+    await act(async () => {
+      native.appStateListener?.("active");
+      native.appStateListener?.("active");
+      native.appStateListener?.("active");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(fetchLatestAndroidRelease).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(NOW.getTime() + SIX_HOURS_MS);
+    await act(async () => {
+      native.appStateListener?.("active");
+      native.appStateListener?.("active");
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(fetchLatestAndroidRelease).toHaveBeenCalledTimes(2);
   });
 
   it("fails silently offline and ignores a corrupt cached release", async () => {

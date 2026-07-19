@@ -70,6 +70,40 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
     let initialized = false;
     let checkInFlight = false;
     let lastAttemptAt: number | null = null;
+    let selectedRelease: AppReleaseManifest | null = null;
+    let pendingCacheRelease: AppReleaseManifest | null = null;
+    let cacheWriteInFlight = false;
+
+    const persistSelectedRelease = (release: AppReleaseManifest) => {
+      if (pendingCacheRelease === null || release.buildVersion > pendingCacheRelease.buildVersion) {
+        pendingCacheRelease = release;
+      }
+      if (cacheWriteInFlight) return;
+
+      cacheWriteInFlight = true;
+      void (async () => {
+        while (pendingCacheRelease !== null) {
+          const nextRelease = pendingCacheRelease;
+          pendingCacheRelease = null;
+          await setStoredValue(CACHED_RELEASE_KEY, JSON.stringify(nextRelease));
+        }
+        cacheWriteInFlight = false;
+      })();
+    };
+
+    const selectRelease = (release: AppReleaseManifest, persist: boolean) => {
+      if (
+        !mounted ||
+        !isNewerAndroidRelease(release, installedBuildVersion) ||
+        (selectedRelease !== null && selectedRelease.buildVersion >= release.buildVersion)
+      ) {
+        return;
+      }
+
+      selectedRelease = release;
+      setKnownRelease(release);
+      if (persist) persistSelectedRelease(release);
+    };
 
     const checkForUpdate = async () => {
       if (checkInFlight) return;
@@ -85,10 +119,8 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
         const release = await fetchLatestAndroidRelease();
         if (!mounted || release === null) return;
 
-        void setStoredValue(CACHED_RELEASE_KEY, JSON.stringify(release));
-        if (isNewerAndroidRelease(release, installedBuildVersion)) {
-          setKnownRelease(release);
-        }
+        const validRelease = parseAppReleaseManifest(release);
+        if (validRelease !== null) selectRelease(validRelease, true);
       } catch {
         // The release service is optional; offline and service errors stay silent.
       } finally {
@@ -99,9 +131,7 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
     const initialize = async () => {
       const cachedValue = await getStoredValue(CACHED_RELEASE_KEY);
       const cachedRelease = parseCachedRelease(cachedValue);
-      if (mounted && cachedRelease && isNewerAndroidRelease(cachedRelease, installedBuildVersion)) {
-        setKnownRelease(cachedRelease);
-      }
+      if (cachedRelease !== null) selectRelease(cachedRelease, false);
 
       const now = Date.now();
       lastAttemptAt = parseAttemptTimestamp(await getStoredValue(LAST_ATTEMPT_KEY), now);
