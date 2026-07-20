@@ -122,6 +122,7 @@ beforeEach(() => {
 afterEach(() => {
   renderer?.unmount();
   renderer = null;
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
@@ -651,6 +652,34 @@ describe("AppUpdateProvider", () => {
 
   it("skips cache, listeners, and network outside Android", async () => {
     native.platform.OS = "web";
+
+    const updates = await renderProvider();
+
+    expect(updates.value.availableRelease).toBeNull();
+    expect(AsyncStorage.getItem).not.toHaveBeenCalled();
+    expect(fetchLatestAndroidRelease).not.toHaveBeenCalled();
+    expect(native.appStateListener).toBeNull();
+  });
+
+  it("shows a local web-only update preview when the dev query flag is present", async () => {
+    native.platform.OS = "web";
+    vi.stubGlobal("location", { search: "?donezoUpdatePreview=1" });
+
+    const updates = await renderProvider();
+
+    expect(updates.value.availableRelease?.version).toBe("1.0.7-preview");
+    expect(updates.value.availableRelease?.downloadPageUrl).toBe(
+      "http://localhost:8081/download/?donezoUpdatePreview=1",
+    );
+    expect(AsyncStorage.getItem).not.toHaveBeenCalled();
+    expect(fetchLatestAndroidRelease).not.toHaveBeenCalled();
+    expect(native.appStateListener).toBeNull();
+  });
+
+  it("never enables the update preview in a production web build", async () => {
+    native.platform.OS = "web";
+    vi.stubGlobal("__DEV__", false);
+    vi.stubGlobal("location", { search: "?donezoUpdatePreview=1" });
 
     const updates = await renderProvider();
 

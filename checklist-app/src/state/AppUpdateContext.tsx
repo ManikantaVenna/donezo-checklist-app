@@ -8,6 +8,21 @@ import { fetchLatestAndroidRelease } from "../lib/appReleases";
 const LAST_ATTEMPT_KEY = "donezo:update:last-attempt-at";
 const CACHED_RELEASE_KEY = "donezo:update:cached-release";
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+const DEV_UPDATE_PREVIEW_RELEASE: AppReleaseManifest = {
+  platform: "android",
+  version: "1.0.7-preview",
+  buildVersion: 10_007,
+  publishedAt: "2026-07-20T00:00:00.000Z",
+  downloadPageUrl: "http://localhost:8081/download/?donezoUpdatePreview=1",
+  apkUrl: "https://downloads.mv-builds.com/Donezo-preview.apk",
+  fileSizeBytes: 37_855_228,
+  sha256: "0".repeat(64),
+  releaseNotes: [
+    "This is a local preview of the update pop-up.",
+    "The real release page opens from the Update Donezo button.",
+    "Production users only see this after latest.json points to a newer build.",
+  ],
+};
 const storageWriteQueues = new Map<string, Promise<void>>();
 
 export type AppUpdateContextValue = {
@@ -69,6 +84,18 @@ function setStoredValue(key: string, value: string): Promise<void> {
   return currentWrite;
 }
 
+function isDevUpdatePreviewRequested(): boolean {
+  if (Platform.OS !== "web") return false;
+
+  const devFlag = (globalThis as { __DEV__?: boolean }).__DEV__;
+  const isDevMode = devFlag === undefined ? process.env.NODE_ENV !== "production" : devFlag;
+  if (!isDevMode) return false;
+
+  const location = (globalThis as { location?: { search?: unknown } }).location;
+  const search = typeof location?.search === "string" ? location.search : "";
+  return /(?:^\?|&)donezoUpdatePreview=1(?:&|$)/.test(search);
+}
+
 async function waitForStoredWrites(key: string): Promise<void> {
   const pendingWrite = storageWriteQueues.get(key);
   if (pendingWrite === undefined) return;
@@ -87,6 +114,11 @@ export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    if (isDevUpdatePreviewRequested()) {
+      setKnownRelease(DEV_UPDATE_PREVIEW_RELEASE);
+      return;
+    }
+
     if (Platform.OS !== "android") return;
 
     let mounted = true;

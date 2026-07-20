@@ -6,6 +6,21 @@
   const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
   const SHA_256 = /^[a-f0-9]{64}$/;
   const UNAVAILABLE_MESSAGE = "The latest Donezo download is temporarily unavailable. Please try again later.";
+  const LOCAL_PREVIEW_RELEASE = {
+    platform: "android",
+    version: "1.0.7-preview",
+    buildVersion: 10_007,
+    publishedAt: "2026-07-20T00:00:00.000Z",
+    downloadPageUrl: "https://donezo.mv-builds.com/download",
+    apkUrl: "https://downloads.mv-builds.com/Donezo-preview.apk",
+    fileSizeBytes: 37_855_228,
+    sha256: "0".repeat(64),
+    releaseNotes: [
+      "This is a local preview of the Donezo release page.",
+      "The real page always displays the newest published APK.",
+      "Installing a newer signed APK updates the existing app and keeps synced data.",
+    ],
+  };
 
   const elements = {
     version: document.querySelector("#version"),
@@ -110,6 +125,14 @@
 
   async function loadRelease() {
     try {
+      const isLocalPreview =
+        ["localhost", "127.0.0.1"].includes(window.location.hostname) &&
+        new URLSearchParams(window.location.search).get("donezoUpdatePreview") === "1";
+      if (isLocalPreview) {
+        renderRelease(parseRelease(LOCAL_PREVIEW_RELEASE));
+        return;
+      }
+
       const response = await fetch(MANIFEST_URL, { cache: "no-store" });
       if (!response.ok) throw new Error("Release unavailable");
       renderRelease(parseRelease(await response.json()));
