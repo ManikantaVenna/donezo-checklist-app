@@ -1,121 +1,124 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef } from "react";
 import { AccessibilityInfo, Animated, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import type { TextStyle, ViewStyle } from "react-native";
+import type { ColorValue, TextStyle, ViewStyle } from "react-native";
 import { getStreakTier, isTierBoundary } from "../domain/streakTiers";
 import type { StreakTierId } from "../domain/streakTiers";
 import { fontFamily } from "../theme/tokens";
 
+type GradientStops = readonly [ColorValue, ColorValue, ColorValue];
+
 type BadgeMaterial = {
-  base: string;
-  border: string;
-  innerBorder: string;
-  topLight: string;
-  bottomShade: string;
-  sideGlow: string;
-  slash: string;
-  number: string;
-  numberShadow: string;
+  body: GradientStops;
+  rim: ColorValue;
+  innerRim: ColorValue;
+  jewel: GradientStops;
+  jewelRim: ColorValue;
+  glow: ColorValue;
+  gleam: ColorValue;
+  number: ColorValue;
+  numberShadow: ColorValue;
 };
 
 const materials: Record<StreakTierId, BadgeMaterial> = {
   neutral: {
-    base: "#171A20",
-    border: "rgba(221,179,79,0.42)",
-    innerBorder: "rgba(255,255,255,0.06)",
-    topLight: "rgba(255,255,255,0.08)",
-    bottomShade: "rgba(0,0,0,0.42)",
-    sideGlow: "rgba(221,179,79,0.13)",
-    slash: "rgba(255,255,255,0.08)",
+    body: ["#20242C", "#151820", "#090B10"],
+    rim: "rgba(221,179,79,0.38)",
+    innerRim: "rgba(255,255,255,0.07)",
+    jewel: ["#363C47", "#20242C", "#10131A"],
+    jewelRim: "rgba(221,179,79,0.28)",
+    glow: "rgba(221,179,79,0.14)",
+    gleam: "rgba(255,255,255,0.16)",
     number: "#B8BFCA",
-    numberShadow: "#050609",
+    numberShadow: "#030407",
   },
   silver: {
-    base: "#252A31",
-    border: "#DCE3EA",
-    innerBorder: "rgba(255,255,255,0.44)",
-    topLight: "rgba(255,255,255,0.42)",
-    bottomShade: "rgba(24,28,34,0.62)",
-    sideGlow: "rgba(240,246,252,0.30)",
-    slash: "rgba(255,255,255,0.70)",
-    number: "#F6FAFF",
-    numberShadow: "#11151B",
+    body: ["#FFFFFF", "#AEB8C4", "#353B46"],
+    rim: "#F4F7FB",
+    innerRim: "rgba(255,255,255,0.72)",
+    jewel: ["#FFFFFF", "#C6D0DC", "#5F6875"],
+    jewelRim: "#F9FBFF",
+    glow: "rgba(232,242,255,0.40)",
+    gleam: "rgba(255,255,255,0.82)",
+    number: "#FFFFFF",
+    numberShadow: "#1C222B",
   },
   "rose-gold": {
-    base: "#33171A",
-    border: "#FFB59D",
-    innerBorder: "rgba(255,219,204,0.34)",
-    topLight: "rgba(255,206,188,0.34)",
-    bottomShade: "rgba(68,19,24,0.70)",
-    sideGlow: "rgba(255,161,139,0.32)",
-    slash: "rgba(255,226,214,0.70)",
-    number: "#FFE0D1",
+    body: ["#FFE1D2", "#CF735C", "#4E1D22"],
+    rim: "#FFC0A9",
+    innerRim: "rgba(255,232,220,0.56)",
+    jewel: ["#FFF0E8", "#E79278", "#77303A"],
+    jewelRim: "#FFD4C5",
+    glow: "rgba(255,154,132,0.40)",
+    gleam: "rgba(255,239,232,0.78)",
+    number: "#FFF0E8",
     numberShadow: "#4D1417",
   },
   gold: {
-    base: "#3A2707",
-    border: "#F3C85E",
-    innerBorder: "rgba(255,236,166,0.36)",
-    topLight: "rgba(255,229,133,0.34)",
-    bottomShade: "rgba(67,38,0,0.68)",
-    sideGlow: "rgba(255,202,82,0.30)",
-    slash: "rgba(255,243,183,0.72)",
-    number: "#FFE08A",
-    numberShadow: "#2B1700",
+    body: ["#FFF0A8", "#E4A928", "#4A2A00"],
+    rim: "#FFE38A",
+    innerRim: "rgba(255,244,188,0.60)",
+    jewel: ["#FFF8CC", "#F3C85E", "#875300"],
+    jewelRim: "#FFF0A8",
+    glow: "rgba(255,205,76,0.42)",
+    gleam: "rgba(255,249,215,0.82)",
+    number: "#FFF5BA",
+    numberShadow: "#321B00",
   },
   diamond: {
-    base: "#102336",
-    border: "#BFEFFF",
-    innerBorder: "rgba(246,254,255,0.46)",
-    topLight: "rgba(220,251,255,0.38)",
-    bottomShade: "rgba(3,22,36,0.70)",
-    sideGlow: "rgba(167,237,255,0.34)",
-    slash: "rgba(255,255,255,0.78)",
-    number: "#F6FEFF",
-    numberShadow: "#082033",
+    body: ["#F4FDFF", "#8EE6FF", "#154E72"],
+    rim: "#CFF8FF",
+    innerRim: "rgba(255,255,255,0.66)",
+    jewel: ["#FFFFFF", "#B9F3FF", "#287FA9"],
+    jewelRim: "#F5FEFF",
+    glow: "rgba(147,235,255,0.42)",
+    gleam: "rgba(255,255,255,0.86)",
+    number: "#F9FEFF",
+    numberShadow: "#07304B",
   },
   emerald: {
-    base: "#07271D",
-    border: "#44E0A1",
-    innerBorder: "rgba(176,255,222,0.32)",
-    topLight: "rgba(95,255,188,0.28)",
-    bottomShade: "rgba(0,28,19,0.74)",
-    sideGlow: "rgba(68,224,161,0.32)",
-    slash: "rgba(218,255,237,0.70)",
-    number: "#DFFFEF",
-    numberShadow: "#001C13",
+    body: ["#B8FFD9", "#22C884", "#053B2A"],
+    rim: "#75F2B8",
+    innerRim: "rgba(202,255,230,0.52)",
+    jewel: ["#D8FFE9", "#45E0A1", "#08724E"],
+    jewelRim: "#B6FFD9",
+    glow: "rgba(74,235,170,0.42)",
+    gleam: "rgba(224,255,238,0.76)",
+    number: "#E7FFF3",
+    numberShadow: "#002217",
   },
   sapphire: {
-    base: "#091A3B",
-    border: "#5E95FF",
-    innerBorder: "rgba(207,225,255,0.32)",
-    topLight: "rgba(116,166,255,0.32)",
-    bottomShade: "rgba(2,14,42,0.76)",
-    sideGlow: "rgba(87,139,255,0.34)",
-    slash: "rgba(231,240,255,0.72)",
-    number: "#EFF4FF",
-    numberShadow: "#001542",
+    body: ["#BFD6FF", "#397EFF", "#061E59"],
+    rim: "#7FB1FF",
+    innerRim: "rgba(220,235,255,0.48)",
+    jewel: ["#E7F0FF", "#75A7FF", "#123D9B"],
+    jewelRim: "#B8D4FF",
+    glow: "rgba(85,144,255,0.46)",
+    gleam: "rgba(235,244,255,0.78)",
+    number: "#F4F8FF",
+    numberShadow: "#00184A",
   },
   "black-diamond": {
-    base: "#08090D",
-    border: "#8C929E",
-    innerBorder: "rgba(255,255,255,0.18)",
-    topLight: "rgba(255,255,255,0.16)",
-    bottomShade: "rgba(0,0,0,0.86)",
-    sideGlow: "rgba(185,199,219,0.22)",
-    slash: "rgba(246,249,255,0.58)",
-    number: "#F5F7FB",
+    body: ["#5A6372", "#181C25", "#030406"],
+    rim: "#A7AFBC",
+    innerRim: "rgba(255,255,255,0.22)",
+    jewel: ["#E8EDF5", "#4A5361", "#07090D"],
+    jewelRim: "#C9D0DB",
+    glow: "rgba(210,222,241,0.30)",
+    gleam: "rgba(255,255,255,0.60)",
+    number: "#FFFFFF",
     numberShadow: "#000000",
   },
   legend: {
-    base: "#160C03",
-    border: "#FFD66F",
-    innerBorder: "rgba(255,232,149,0.40)",
-    topLight: "rgba(255,216,111,0.30)",
-    bottomShade: "rgba(0,0,0,0.74)",
-    sideGlow: "rgba(255,196,61,0.34)",
-    slash: "rgba(255,241,179,0.74)",
-    number: "#FFD472",
-    numberShadow: "#1A0D00",
+    body: ["#FFE58D", "#B7780E", "#080501"],
+    rim: "#FFE18A",
+    innerRim: "rgba(255,230,145,0.52)",
+    jewel: ["#FFF3B4", "#E2A31B", "#2B1700"],
+    jewelRim: "#FFF0A8",
+    glow: "rgba(255,194,50,0.48)",
+    gleam: "rgba(255,241,183,0.78)",
+    number: "#FFE08A",
+    numberShadow: "#180C00",
   },
 };
 
@@ -127,7 +130,7 @@ export function StreakBadge({ streak }: { streak: number }) {
   const shine = useRef(new Animated.Value(0)).current;
   const { width: viewportWidth } = useWindowDimensions();
   const roomy = viewportWidth >= 768;
-  const frameWidth = roomy ? 58 : 48;
+  const frameWidth = roomy ? 70 : 62;
   const label = `${safeStreak} day streak${tier.id === "neutral" ? "" : `, ${tier.label} tier`}`;
 
   useEffect(() => {
@@ -161,17 +164,19 @@ export function StreakBadge({ streak }: { streak: number }) {
       style={[
         styles.frame,
         roomy && styles.roomyFrame,
-        { backgroundColor: material.base, borderColor: material.border } satisfies ViewStyle,
+        { borderColor: material.rim, shadowColor: material.glow } satisfies ViewStyle,
       ]}
     >
-      <View style={[styles.innerRim, { borderColor: material.innerBorder }]} />
-      <View style={[styles.topLight, { backgroundColor: material.topLight }]} />
-      <View style={[styles.bottomShade, { backgroundColor: material.bottomShade }]} />
-      <View style={[styles.sideGlow, { backgroundColor: material.sideGlow }]} />
-      <View style={[styles.slash, { backgroundColor: material.slash }]} />
+      <LinearGradient colors={material.body} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+      <View style={[styles.innerRim, { borderColor: material.innerRim }]} />
+      <View style={[styles.glow, { backgroundColor: material.glow }]} />
+      <LinearGradient colors={material.jewel} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={[styles.jewel, { borderColor: material.jewelRim }]} />
+      <View style={[styles.jewelFacet, { backgroundColor: material.gleam }]} />
+      <View style={[styles.topGleam, { backgroundColor: material.gleam }]} />
+      <View style={[styles.diagonalGleam, { backgroundColor: material.gleam }]} />
       <Text
         adjustsFontSizeToFit
-        minimumFontScale={0.55}
+        minimumFontScale={0.58}
         numberOfLines={1}
         style={[
           styles.number,
@@ -188,14 +193,14 @@ export function StreakBadge({ streak }: { streak: number }) {
           {
             opacity: shine.interpolate({
               inputRange: [0, 0.5, 1],
-              outputRange: [0, 0.22, 0],
+              outputRange: [0, 0.32, 0],
             }),
             transform: [
-              { rotate: "14deg" },
+              { rotate: "18deg" },
               {
                 translateX: shine.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [-18, frameWidth + 18],
+                  outputRange: [-20, frameWidth + 20],
                 }),
               },
             ],
@@ -208,8 +213,8 @@ export function StreakBadge({ streak }: { streak: number }) {
 
 const styles = StyleSheet.create({
   frame: {
-    width: 48,
-    height: 28,
+    width: 62,
+    height: 32,
     flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
@@ -217,10 +222,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     overflow: "hidden",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.72,
+    shadowRadius: 9,
+    elevation: 3,
   },
   roomyFrame: {
-    width: 58,
-    height: 30,
+    width: 70,
+    height: 34,
   },
   innerRim: {
     position: "absolute",
@@ -231,59 +240,78 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 999,
   },
-  topLight: {
+  glow: {
     position: "absolute",
-    top: 2,
-    right: 4,
-    left: 4,
-    height: "36%",
+    top: -8,
+    bottom: -8,
+    left: -10,
+    width: 42,
     borderRadius: 999,
+    opacity: 0.72,
   },
-  bottomShade: {
+  jewel: {
     position: "absolute",
-    right: 0,
-    bottom: 0,
-    left: 0,
-    height: "42%",
+    top: 5,
+    bottom: 5,
+    left: 6,
+    width: 21,
+    borderRadius: 6,
+    borderWidth: 1,
+    opacity: 0.98,
+    transform: [{ rotate: "45deg" }],
   },
-  sideGlow: {
+  jewelFacet: {
+    position: "absolute",
+    top: 8,
+    left: 15,
+    width: 2,
+    height: 15,
+    opacity: 0.62,
+    transform: [{ rotate: "25deg" }],
+  },
+  topGleam: {
     position: "absolute",
     top: 3,
-    bottom: 3,
-    left: -5,
-    width: 20,
+    right: 8,
+    left: 30,
+    height: 6,
     borderRadius: 999,
+    opacity: 0.34,
   },
-  slash: {
+  diagonalGleam: {
     position: "absolute",
-    top: -4,
-    bottom: -4,
-    left: 8,
+    top: -5,
+    bottom: -5,
+    left: 22,
     width: 5,
-    opacity: 0.64,
+    opacity: 0.54,
     borderRadius: 999,
     transform: [{ rotate: "24deg" }],
   },
   number: {
     zIndex: 2,
     width: "100%",
+    paddingLeft: 22,
+    paddingRight: 6,
     color: "#F5F7FB",
     fontFamily: fontFamily.black,
-    fontSize: 14,
+    fontSize: 16,
     fontVariant: ["tabular-nums"],
     includeFontPadding: false,
     textAlign: "center",
     textAlignVertical: "center",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1.2,
+    textShadowRadius: 2,
   },
   roomyNumber: {
-    fontSize: 15,
+    fontSize: 17,
+    paddingLeft: 24,
+    paddingRight: 8,
   },
   shine: {
     position: "absolute",
-    top: "15%",
-    bottom: "15%",
+    top: "12%",
+    bottom: "12%",
     left: -12,
     width: 8,
     zIndex: 3,

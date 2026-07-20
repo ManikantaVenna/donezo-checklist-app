@@ -53,6 +53,15 @@ vi.mock("react-native", () => {
   };
 });
 
+vi.mock("expo-linear-gradient", () => {
+  const { createElement } = require("react") as typeof import("react");
+
+  return {
+    LinearGradient: ({ children, ...props }: { children?: unknown }) =>
+      createElement("LinearGradient", props, children as never),
+  };
+});
+
 let renderer: ReactTestRenderer | null = null;
 
 afterEach(() => {
@@ -100,7 +109,7 @@ describe("StreakBadge", () => {
     const badge = renderBadge(63, { width: 900 });
     const frame = badge.root.findByProps({ accessibilityLabel: "63 day streak, Emerald tier" });
 
-    expect(flattenStyle(frame.props.style)).toMatchObject({ height: 30, width: 58 });
+    expect(flattenStyle(frame.props.style)).toMatchObject({ height: 34, width: 70 });
   });
 
   it("does not replay the shimmer on initial load", () => {
