@@ -109,7 +109,21 @@ describe("StreakBadge", () => {
     const badge = renderBadge(63, { width: 900 });
     const frame = badge.root.findByProps({ accessibilityLabel: "63 day streak, Emerald tier" });
 
-    expect(flattenStyle(frame.props.style)).toMatchObject({ height: 34, width: 70 });
+    expect(flattenStyle(frame.props.style)).toMatchObject({ height: 38, width: 50 });
+  });
+
+  it("uses compact medallion dimensions on phones", () => {
+    const badge = renderBadge(2, { width: 390 });
+    const frame = badge.root.findByProps({ accessibilityLabel: "2 day streak, Silver tier" });
+
+    expect(flattenStyle(frame.props.style)).toMatchObject({ height: 34, width: 39 });
+  });
+
+  it("uses code-native material layers instead of image backdrops", () => {
+    const badge = renderBadge(2, { width: 390 });
+
+    expect(badge.root.findAll((node) => String(node.type) === "Image")).toHaveLength(0);
+    expect(badge.root.findAll((node) => String(node.type) === "LinearGradient").length).toBeGreaterThanOrEqual(2);
   });
 
   it("does not replay the shimmer on initial load", () => {

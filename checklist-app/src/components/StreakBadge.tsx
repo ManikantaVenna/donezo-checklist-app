@@ -9,114 +9,124 @@ import { fontFamily } from "../theme/tokens";
 type GradientStops = readonly [ColorValue, ColorValue, ColorValue];
 
 type BadgeMaterial = {
-  body: GradientStops;
+  shell: GradientStops;
+  face: GradientStops;
   rim: ColorValue;
   innerRim: ColorValue;
-  jewel: GradientStops;
-  jewelRim: ColorValue;
+  depth: ColorValue;
   glow: ColorValue;
-  gleam: ColorValue;
+  glint: ColorValue;
+  glintSoft: ColorValue;
   number: ColorValue;
   numberShadow: ColorValue;
 };
 
 const materials: Record<StreakTierId, BadgeMaterial> = {
   neutral: {
-    body: ["#20242C", "#151820", "#090B10"],
+    shell: ["#2A303A", "#151922", "#07090D"],
+    face: ["#202630", "#111720", "#050609"],
     rim: "rgba(221,179,79,0.38)",
     innerRim: "rgba(255,255,255,0.07)",
-    jewel: ["#363C47", "#20242C", "#10131A"],
-    jewelRim: "rgba(221,179,79,0.28)",
+    depth: "rgba(0,0,0,0.38)",
     glow: "rgba(221,179,79,0.14)",
-    gleam: "rgba(255,255,255,0.16)",
+    glint: "rgba(255,255,255,0.16)",
+    glintSoft: "rgba(221,179,79,0.12)",
     number: "#B8BFCA",
     numberShadow: "#030407",
   },
   silver: {
-    body: ["#FFFFFF", "#AEB8C4", "#353B46"],
-    rim: "#F4F7FB",
-    innerRim: "rgba(255,255,255,0.72)",
-    jewel: ["#FFFFFF", "#C6D0DC", "#5F6875"],
-    jewelRim: "#F9FBFF",
-    glow: "rgba(232,242,255,0.40)",
-    gleam: "rgba(255,255,255,0.82)",
-    number: "#FFFFFF",
-    numberShadow: "#1C222B",
+    shell: ["#FFFFFF", "#9FAAB8", "#202630"],
+    face: ["#586271", "#1F2630", "#080A0F"],
+    rim: "#F7FAFF",
+    innerRim: "rgba(255,255,255,0.50)",
+    depth: "rgba(0,0,0,0.34)",
+    glow: "rgba(225,239,255,0.42)",
+    glint: "rgba(255,255,255,0.82)",
+    glintSoft: "rgba(210,226,243,0.24)",
+    number: "#F6FAFF",
+    numberShadow: "#0A0D12",
   },
   "rose-gold": {
-    body: ["#FFE1D2", "#CF735C", "#4E1D22"],
-    rim: "#FFC0A9",
-    innerRim: "rgba(255,232,220,0.56)",
-    jewel: ["#FFF0E8", "#E79278", "#77303A"],
-    jewelRim: "#FFD4C5",
+    shell: ["#FFE3D8", "#C86B57", "#3A1117"],
+    face: ["#7D3440", "#3B1319", "#100306"],
+    rim: "#FFD0C2",
+    innerRim: "rgba(255,221,211,0.44)",
+    depth: "rgba(71,14,21,0.42)",
     glow: "rgba(255,154,132,0.40)",
-    gleam: "rgba(255,239,232,0.78)",
+    glint: "rgba(255,239,232,0.76)",
+    glintSoft: "rgba(255,170,148,0.24)",
     number: "#FFF0E8",
     numberShadow: "#4D1417",
   },
   gold: {
-    body: ["#FFF0A8", "#E4A928", "#4A2A00"],
+    shell: ["#FFF3B8", "#D99B17", "#3B2100"],
+    face: ["#7C520B", "#2B1900", "#080501"],
     rim: "#FFE38A",
-    innerRim: "rgba(255,244,188,0.60)",
-    jewel: ["#FFF8CC", "#F3C85E", "#875300"],
-    jewelRim: "#FFF0A8",
+    innerRim: "rgba(255,238,173,0.46)",
+    depth: "rgba(76,39,0,0.45)",
     glow: "rgba(255,205,76,0.42)",
-    gleam: "rgba(255,249,215,0.82)",
+    glint: "rgba(255,249,215,0.78)",
+    glintSoft: "rgba(255,203,71,0.24)",
     number: "#FFF5BA",
     numberShadow: "#321B00",
   },
   diamond: {
-    body: ["#F4FDFF", "#8EE6FF", "#154E72"],
-    rim: "#CFF8FF",
-    innerRim: "rgba(255,255,255,0.66)",
-    jewel: ["#FFFFFF", "#B9F3FF", "#287FA9"],
-    jewelRim: "#F5FEFF",
+    shell: ["#FFFFFF", "#9AEFFF", "#15597A"],
+    face: ["#BFF8FF", "#347FA7", "#071827"],
+    rim: "#E8FCFF",
+    innerRim: "rgba(255,255,255,0.56)",
+    depth: "rgba(6,46,72,0.42)",
     glow: "rgba(147,235,255,0.42)",
-    gleam: "rgba(255,255,255,0.86)",
+    glint: "rgba(255,255,255,0.88)",
+    glintSoft: "rgba(191,248,255,0.28)",
     number: "#F9FEFF",
     numberShadow: "#07304B",
   },
   emerald: {
-    body: ["#B8FFD9", "#22C884", "#053B2A"],
-    rim: "#75F2B8",
-    innerRim: "rgba(202,255,230,0.52)",
-    jewel: ["#D8FFE9", "#45E0A1", "#08724E"],
-    jewelRim: "#B6FFD9",
+    shell: ["#C8FFE1", "#23CE86", "#053424"],
+    face: ["#34D596", "#086848", "#02140E"],
+    rim: "#86F7C0",
+    innerRim: "rgba(202,255,230,0.44)",
+    depth: "rgba(0,45,29,0.48)",
     glow: "rgba(74,235,170,0.42)",
-    gleam: "rgba(224,255,238,0.76)",
+    glint: "rgba(224,255,238,0.76)",
+    glintSoft: "rgba(80,235,169,0.24)",
     number: "#E7FFF3",
     numberShadow: "#002217",
   },
   sapphire: {
-    body: ["#BFD6FF", "#397EFF", "#061E59"],
-    rim: "#7FB1FF",
-    innerRim: "rgba(220,235,255,0.48)",
-    jewel: ["#E7F0FF", "#75A7FF", "#123D9B"],
-    jewelRim: "#B8D4FF",
+    shell: ["#C6DCFF", "#397EFF", "#061A52"],
+    face: ["#5B92FF", "#153A98", "#020A24"],
+    rim: "#8FBAFF",
+    innerRim: "rgba(220,235,255,0.42)",
+    depth: "rgba(2,12,44,0.50)",
     glow: "rgba(85,144,255,0.46)",
-    gleam: "rgba(235,244,255,0.78)",
+    glint: "rgba(235,244,255,0.78)",
+    glintSoft: "rgba(111,163,255,0.24)",
     number: "#F4F8FF",
     numberShadow: "#00184A",
   },
   "black-diamond": {
-    body: ["#5A6372", "#181C25", "#030406"],
-    rim: "#A7AFBC",
-    innerRim: "rgba(255,255,255,0.22)",
-    jewel: ["#E8EDF5", "#4A5361", "#07090D"],
-    jewelRim: "#C9D0DB",
+    shell: ["#C8D0DC", "#3B4451", "#010204"],
+    face: ["#313945", "#0D1118", "#000000"],
+    rim: "#B8C0CE",
+    innerRim: "rgba(255,255,255,0.18)",
+    depth: "rgba(0,0,0,0.58)",
     glow: "rgba(210,222,241,0.30)",
-    gleam: "rgba(255,255,255,0.60)",
+    glint: "rgba(255,255,255,0.58)",
+    glintSoft: "rgba(172,186,207,0.18)",
     number: "#FFFFFF",
     numberShadow: "#000000",
   },
   legend: {
-    body: ["#FFE58D", "#B7780E", "#080501"],
+    shell: ["#FFF3A6", "#CF8B10", "#070401"],
+    face: ["#FFE073", "#835203", "#050200"],
     rim: "#FFE18A",
-    innerRim: "rgba(255,230,145,0.52)",
-    jewel: ["#FFF3B4", "#E2A31B", "#2B1700"],
-    jewelRim: "#FFF0A8",
+    innerRim: "rgba(255,230,145,0.46)",
+    depth: "rgba(55,29,0,0.46)",
     glow: "rgba(255,194,50,0.48)",
-    gleam: "rgba(255,241,183,0.78)",
+    glint: "rgba(255,241,183,0.78)",
+    glintSoft: "rgba(255,199,58,0.26)",
     number: "#FFE08A",
     numberShadow: "#180C00",
   },
@@ -130,7 +140,10 @@ export function StreakBadge({ streak }: { streak: number }) {
   const shine = useRef(new Animated.Value(0)).current;
   const { width: viewportWidth } = useWindowDimensions();
   const roomy = viewportWidth >= 768;
-  const frameWidth = roomy ? 70 : 62;
+  const digits = String(safeStreak).length;
+  const frameWidth = roomy ? Math.min(58, 36 + digits * 7) : Math.min(52, 32 + digits * 7);
+  const frameHeight = roomy ? 38 : 34;
+  const numberSize = roomy ? (digits >= 3 ? 15 : 18) : digits >= 3 ? 14 : 17;
   const label = `${safeStreak} day streak${tier.id === "neutral" ? "" : `, ${tier.label} tier`}`;
 
   useEffect(() => {
@@ -163,25 +176,33 @@ export function StreakBadge({ streak }: { streak: number }) {
       accessibilityRole="text"
       style={[
         styles.frame,
-        roomy && styles.roomyFrame,
-        { borderColor: material.rim, shadowColor: material.glow } satisfies ViewStyle,
+        {
+          borderColor: material.rim,
+          shadowColor: material.glow,
+          width: frameWidth,
+          height: frameHeight,
+        } satisfies ViewStyle,
       ]}
     >
-      <LinearGradient colors={material.body} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={material.shell} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={StyleSheet.absoluteFill} />
       <View style={[styles.innerRim, { borderColor: material.innerRim }]} />
-      <View style={[styles.glow, { backgroundColor: material.glow }]} />
-      <LinearGradient colors={material.jewel} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={[styles.jewel, { borderColor: material.jewelRim }]} />
-      <View style={[styles.jewelFacet, { backgroundColor: material.gleam }]} />
-      <View style={[styles.topGleam, { backgroundColor: material.gleam }]} />
-      <View style={[styles.diagonalGleam, { backgroundColor: material.gleam }]} />
+      <LinearGradient colors={material.face} end={{ x: 0.85, y: 1 }} start={{ x: 0.15, y: 0 }} style={styles.face} />
+      <View style={[styles.depth, { backgroundColor: material.depth }]} />
+      <View style={[styles.topArc, { backgroundColor: material.glint }]} />
+      <View style={[styles.leftFacet, { backgroundColor: material.glintSoft }]} />
+      <View style={[styles.rightFacet, { backgroundColor: material.glintSoft }]} />
+      <View style={[styles.pinSpark, { backgroundColor: material.glint }]} />
       <Text
         adjustsFontSizeToFit
         minimumFontScale={0.58}
         numberOfLines={1}
         style={[
           styles.number,
-          roomy && styles.roomyNumber,
-          { color: material.number, textShadowColor: material.numberShadow } satisfies TextStyle,
+          {
+            color: material.number,
+            fontSize: numberSize,
+            textShadowColor: material.numberShadow,
+          } satisfies TextStyle,
         ]}
       >
         {safeStreak}
@@ -200,7 +221,7 @@ export function StreakBadge({ streak }: { streak: number }) {
               {
                 translateX: shine.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [-20, frameWidth + 20],
+                  outputRange: [-18, frameWidth + 18],
                 }),
               },
             ],
@@ -213,8 +234,6 @@ export function StreakBadge({ streak }: { streak: number }) {
 
 const styles = StyleSheet.create({
   frame: {
-    width: 62,
-    height: 32,
     flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
@@ -223,13 +242,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.72,
-    shadowRadius: 9,
+    shadowOpacity: 0.82,
+    shadowRadius: 8,
     elevation: 3,
-  },
-  roomyFrame: {
-    width: 70,
-    height: 34,
   },
   innerRim: {
     position: "absolute",
@@ -240,81 +255,82 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 999,
   },
-  glow: {
+  face: {
     position: "absolute",
-    top: -8,
-    bottom: -8,
-    left: -10,
-    width: 42,
+    top: 4,
+    right: 4,
+    bottom: 4,
+    left: 4,
+    borderRadius: 999,
+  },
+  depth: {
+    position: "absolute",
+    right: 5,
+    bottom: 5,
+    left: 5,
+    height: "34%",
+    borderBottomLeftRadius: 999,
+    borderBottomRightRadius: 999,
+    opacity: 0.72,
+  },
+  topArc: {
+    position: "absolute",
+    top: 6,
+    left: 9,
+    right: 9,
+    height: 5,
+    borderRadius: 999,
+    opacity: 0.28,
+  },
+  leftFacet: {
+    position: "absolute",
+    top: 7,
+    bottom: 8,
+    left: 7,
+    width: 6,
+    borderRadius: 999,
+    opacity: 0.36,
+    transform: [{ rotate: "30deg" }],
+  },
+  rightFacet: {
+    position: "absolute",
+    top: 9,
+    right: 8,
+    width: 4,
+    height: 12,
+    borderRadius: 999,
+    opacity: 0.20,
+    transform: [{ rotate: "30deg" }],
+  },
+  pinSpark: {
+    position: "absolute",
+    top: 7,
+    left: 10,
+    width: 3,
+    height: 3,
     borderRadius: 999,
     opacity: 0.72,
   },
-  jewel: {
-    position: "absolute",
-    top: 5,
-    bottom: 5,
-    left: 6,
-    width: 21,
-    borderRadius: 6,
-    borderWidth: 1,
-    opacity: 0.98,
-    transform: [{ rotate: "45deg" }],
-  },
-  jewelFacet: {
-    position: "absolute",
-    top: 8,
-    left: 15,
-    width: 2,
-    height: 15,
-    opacity: 0.62,
-    transform: [{ rotate: "25deg" }],
-  },
-  topGleam: {
-    position: "absolute",
-    top: 3,
-    right: 8,
-    left: 30,
-    height: 6,
-    borderRadius: 999,
-    opacity: 0.34,
-  },
-  diagonalGleam: {
-    position: "absolute",
-    top: -5,
-    bottom: -5,
-    left: 22,
-    width: 5,
-    opacity: 0.54,
-    borderRadius: 999,
-    transform: [{ rotate: "24deg" }],
-  },
   number: {
-    zIndex: 2,
+    zIndex: 4,
     width: "100%",
-    paddingLeft: 22,
-    paddingRight: 6,
+    paddingHorizontal: 5,
     color: "#F5F7FB",
     fontFamily: fontFamily.black,
-    fontSize: 16,
     fontVariant: ["tabular-nums"],
     includeFontPadding: false,
     textAlign: "center",
     textAlignVertical: "center",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  roomyNumber: {
-    fontSize: 17,
-    paddingLeft: 24,
-    paddingRight: 8,
+    textShadowRadius: 3,
   },
   shine: {
     position: "absolute",
     top: "12%",
     bottom: "12%",
     left: -12,
-    width: 8,
-    zIndex: 3,
+    width: 7,
+    zIndex: 5,
     borderRadius: 999,
     backgroundColor: "#FFFFFF",
   },
