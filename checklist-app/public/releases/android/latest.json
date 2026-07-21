@@ -1,0 +1,15 @@
+{
+  "platform": "android",
+  "version": "1.0.7",
+  "buildVersion": 10,
+  "publishedAt": "2026-07-21T04:45:14.398Z",
+  "downloadPageUrl": "https://donezo.mv-builds.com/download",
+  "apkUrl": "https://downloads.mv-builds.com/android/Donezo-1.0.7-build-10.apk",
+  "fileSizeBytes": 37594996,
+  "sha256": "4f907ff9991655fe5be310c072f14a4177f05eaa208101684367bbf9822c6062",
+  "releaseNotes": [
+    "Streak totals stay visible and accurate after each daily reset.",
+    "Premium streak badges now display clearly across phone and web.",
+    "Donezo now notifies you when a newer Android build is ready."
+  ]
+}

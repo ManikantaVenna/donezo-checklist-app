@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "donezo-release-downloads",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-21",
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "downloads.mv-builds.com",
+      "custom_domain": true
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RELEASES",
+      "bucket_name": "donezo-releases"
+    }
+  ]
+}

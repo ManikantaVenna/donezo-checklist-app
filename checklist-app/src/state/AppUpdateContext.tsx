@@ -3,6 +3,7 @@ import * as Application from "expo-application";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { AppState, Linking, Platform } from "react-native";
 import { isNewerAndroidRelease, parseAppReleaseManifest, type AppReleaseManifest } from "../domain/appRelease";
+import { APP_VERSION } from "../lib/appVersion";
 import { fetchLatestAndroidRelease } from "../lib/appReleases";
 
 const LAST_ATTEMPT_KEY = "donezo:update:last-attempt-at";
@@ -108,7 +109,7 @@ async function waitForStoredWrites(key: string): Promise<void> {
 }
 
 export function AppUpdateProvider({ children }: AppUpdateProviderProps) {
-  const installedVersion = Application.nativeApplicationVersion ?? "Unknown";
+  const installedVersion = Application.nativeApplicationVersion ?? APP_VERSION;
   const installedBuildVersion = Application.nativeBuildVersion;
   const [knownRelease, setKnownRelease] = useState<AppReleaseManifest | null>(null);
   const [dismissed, setDismissed] = useState(false);
