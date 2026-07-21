@@ -2,7 +2,11 @@
 
 Donezo is a premium personal checklist app built for people who want a simple command center for the day: quick tasks, daily routines, streaks, and lightweight projects in one polished dark and gold experience.
 
+Live web browser app: https://donezo.mv-builds.com
+
 Live download page: https://donezo.mv-builds.com/download
+
+People who do not want to install the Android app right away can open the web version first. It runs in the browser, uses the same Donezo account, and is the safest way to try the app before downloading the APK.
 
 ## What Donezo Does
 
@@ -105,6 +109,7 @@ The current public Android release is:
 
 - Version: `1.0.7`
 - Build: `10`
+- Web browser app: https://donezo.mv-builds.com
 - Download page: https://donezo.mv-builds.com/download
 - APK host: https://downloads.mv-builds.com/android/Donezo-1.0.7-build-10.apk
 
