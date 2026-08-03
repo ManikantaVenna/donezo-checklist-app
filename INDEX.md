@@ -37,6 +37,7 @@
 - `reminder-worker/` - Cloudflare Worker cron for PWA Web Push reminders.
 - `reminder-worker/src/reminders.ts` - reminder due-time filtering, unfinished daily checks, push sending, dead subscription cleanup.
 - `reminder-worker/wrangler.jsonc` - one-minute cron trigger and Worker config.
+- `checklist-app/supabase/migrations/20260803181500_add_web_push_delivery_records.sql` - private PWA delivery records, retry-window due RPC, and delivery-record RPC.
 
 ## Design/plans
 

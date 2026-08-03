@@ -39,6 +39,30 @@ describe("reminder jobs", () => {
     expect(earlyJobs).toEqual([]);
   });
 
+  it("keeps reminders due for a short retry window after the selected minute", () => {
+    const jobs = buildReminderJobs(new Date("2026-08-03T11:34:00.000Z"), baseDataset, {
+      lookbackMinutes: 5,
+    });
+
+    expect(jobs).toEqual([
+      expect.objectContaining({
+        userId: "user-1",
+        subscriptionId: "sub-1",
+        localDate: "2026-08-03",
+        reminderTime: "17:00",
+        unfinishedCount: 1,
+      }),
+    ]);
+  });
+
+  it("does not create retry jobs after the reminder window closes", () => {
+    const jobs = buildReminderJobs(new Date("2026-08-03T11:36:00.000Z"), baseDataset, {
+      lookbackMinutes: 5,
+    });
+
+    expect(jobs).toEqual([]);
+  });
+
   it("does not create jobs when all daily routines are complete for that local date", () => {
     const jobs = buildReminderJobs(new Date("2026-08-03T11:30:00.000Z"), {
       ...baseDataset,

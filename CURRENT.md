@@ -4,7 +4,7 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current commit before this continuity update:** `d2f5750`
+- **Current commit before this reminder reliability update:** `664f2be`
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
@@ -34,6 +34,7 @@
 - Deployed `donezo-reminders` as a scheduled-only Cloudflare Worker with cron `* * * * *`.
 - Deployed a Cloudflare Pages production deployment for the PWA files on branch `codex/public-launch`.
 - Fixed the web build script to run Expo export with `--clear` so stale Metro cache cannot omit `EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY` from the deployed bundle.
+- Hardened iPhone/Home Screen PWA reminder delivery so the Worker checks a short retry window after the selected reminder minute, stores private delivery records, and avoids duplicate successful sends for the same subscription/local date/time.
 
 ## Latest public release details
 
@@ -68,13 +69,15 @@ Current PWA reminder work was verified with:
 - `npm run typecheck` in `reminder-worker`
 - `npx wrangler deploy --dry-run` in `reminder-worker`
 - Supabase live checks: `web_push_subscriptions` has RLS enabled; reminder RPC migration and cleanup migration are recorded; invalid worker token returns zero due reminder rows.
+- Supabase live checks for reminder reliability migration: `private.web_push_reminder_deliveries` exists, RLS is enabled, the 3-argument `get_due_web_push_reminders` RPC exists, and `record_web_push_reminder_delivery` exists.
 - Supabase security advisor: only expected warnings for token-guarded public `SECURITY DEFINER` RPCs plus unrelated leaked-password-protection setting.
-- Cloudflare Worker `donezo-reminders` deploy version `b6241ddb-8ddc-4c1f-a161-6e7d5fea6acf` is live with cron `* * * * *`.
+- Cloudflare Worker `donezo-reminders` deploy version `6d8a44d9-2752-49ef-9853-5f231ec47000` is live with cron `* * * * *`.
 - Cloudflare Worker secrets are set for `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `REMINDER_WORKER_TOKEN`, `WEB_PUSH_PUBLIC_KEY`, and `WEB_PUSH_PRIVATE_KEY`.
 - Cloudflare Pages production deployment is live on branch `codex/public-launch`; verify the current deployment ID with `npx wrangler pages deployment list --project-name donezo` when needed.
 - Live checks for `https://donezo.mv-builds.com/`, `/manifest.webmanifest`, `/donezo-service-worker.js`, and `/icons/donezo-1024.png` returned `200`; manifest is JSON and service worker is JavaScript with notification handling.
 - Local clean export check confirmed `dist/_expo/static/js/web/index-73c0ffd16633168b24dc2949a4c9ddfc.js` contains the configured web-push public key.
 - Cloudflare Pages production deployment `075d5085-7459-47be-859e-2e9a1a076d68` source `32fb166` served the fixed bundle; live `https://donezo.mv-builds.com/` now points to `index-73c0ffd16633168b24dc2949a4c9ddfc.js`, and that live bundle contains the web-push public key.
+- Reminder reliability update verified with `npm test`, `npm run typecheck`, and `npx wrangler deploy --dry-run` in `reminder-worker`; `npx wrangler deploy` published version `6d8a44d9-2752-49ef-9853-5f231ec47000`; `npx wrangler versions list` and `npx wrangler deployments list` show that version deployed at 100%.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -86,6 +89,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - Friends can use the app, but if some users do not receive verification emails, inspect Resend logs for delivered/bounced/failed/no-log cases before changing app code.
 - Public GitHub repo exists and tracks `codex/public-launch`.
 - PWA Web Push reminders are live for signed-in web users who add Donezo to the iPhone Home Screen, open it from that icon, enable web reminders in Settings, and allow notifications.
+- PWA Web Push server delivery now has a 5-minute after-time retry window and private delivery records, so a slightly delayed cron run should still send once if daily routines remain unfinished.
 - Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
 
@@ -96,17 +100,17 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - Android update prompts only work for installed versions that already include the update checker.
 - Releasing requires the full release order in `AGENTS.md`; do not skip it.
 - iPhone browser-tab reminders are still not the reliable path; users should install Donezo to the Home Screen and enable reminders from that installed web app.
-- Exact notification delivery still needs a real iPhone Home Screen test with notification permission allowed, Focus modes not blocking Donezo, and at least one unfinished daily routine at the selected local reminder minute.
+- Exact closed-app notification display still needs a real iPhone Home Screen test with notification permission allowed, Focus modes not blocking Donezo, and at least one unfinished daily routine during the selected local reminder window.
 - The live service-worker URL serves JavaScript correctly. Cloudflare custom-domain cache reported `max-age=14400` on the plain service-worker URL even though the latest deployment URL has the intended `no-cache` header; monitor on the next deploy.
 - If Donezo says "Web reminders are not configured on this Donezo build yet," check whether the live web bundle contains `EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY`; the `build:web` script now uses `--clear` to avoid stale Metro env caching.
 - `npx wrangler types --check` is not usable with the current hand-written `reminder-worker/worker-configuration.d.ts`; normal Worker typecheck and dry-run pass.
 
 ## Next exact task
 
-On the iPhone Home Screen app, force close and reopen Donezo so it loads the fixed web bundle. Then go to Settings, tap Enable web reminders, allow notifications, leave one daily routine unfinished, and wait for the selected local reminder minute. If it still says web reminders are not configured, delete the Home Screen icon, add it again from Safari, and retest.
+On the real iPhone Home Screen app, leave at least one daily routine unfinished, set the daily reminder a few minutes ahead in the selected timezone, close Donezo fully, lock the iPhone, and wait through the reminder minute plus the 5-minute retry window. If no notification appears, inspect `private.web_push_reminder_deliveries` for that subscription/local date/time to see whether Apple accepted the push (`sent`) or the Worker recorded a failure/deleted subscription.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed for iPhone/Home Screen web users, `donezo-reminders` cron is live, Android 1.0.7 build 10 remains the latest APK, and Android native reminder source changes still need a future APK plus latest.json release before Android users get them. Next task: test exact-time reminders on a real iPhone Home Screen install and inspect Supabase/Worker logs if the notification does not arrive. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed for iPhone/Home Screen web users, `donezo-reminders` cron is live with deploy version `6d8a44d9-2752-49ef-9853-5f231ec47000`, delivery attempts are recorded privately, Android 1.0.7 build 10 remains the latest APK, and Android native reminder source changes still need a future APK plus latest.json release before Android users get them. Next task: test closed-app reminder delivery on a real iPhone Home Screen install and inspect `private.web_push_reminder_deliveries` if the notification does not appear. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
 ```

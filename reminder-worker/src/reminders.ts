@@ -41,6 +41,10 @@ export type ReminderDataset = {
   completions: DailyCompletionRow[];
 };
 
+export type BuildReminderJobOptions = {
+  lookbackMinutes?: number;
+};
+
 export type ReminderJob = {
   userId: string;
   subscriptionId: string;
@@ -69,6 +73,8 @@ export type ReminderRunResult = {
   failed: number;
 };
 
+export type ReminderDeliveryStatus = "sent" | "failed" | "deleted";
+
 export type DueReminderRpcRow = {
   subscription_id: string;
   user_id: string;
@@ -81,12 +87,19 @@ export type DueReminderRpcRow = {
   unfinished_count: number;
 };
 
-export function buildReminderJobs(now: Date, dataset: ReminderDataset): ReminderJob[] {
+const REMINDER_LOOKBACK_MINUTES = 5;
+
+export function buildReminderJobs(
+  now: Date,
+  dataset: ReminderDataset,
+  options: BuildReminderJobOptions = {},
+): ReminderJob[] {
   const preferencesByUser = new Map(dataset.preferences.map((preference) => [preference.user_id, preference]));
   const subscriptionsByUser = groupBy(dataset.subscriptions, (subscription) => subscription.user_id);
   const tasksByUser = groupBy(dataset.tasks, (task) => task.user_id);
   const completionsByUser = groupBy(dataset.completions, (completion) => completion.user_id);
   const jobs: ReminderJob[] = [];
+  const lookbackMinutes = normalizeLookbackMinutes(options.lookbackMinutes);
 
   for (const profile of dataset.profiles) {
     const preference = preferencesByUser.get(profile.id);
@@ -96,7 +109,7 @@ export function buildReminderJobs(now: Date, dataset: ReminderDataset): Reminder
     if (!local) continue;
 
     const reminderTime = normalizeReminderTime(preference.reminder_time);
-    if (local.time !== reminderTime) continue;
+    if (!isReminderDueInWindow(local.time, reminderTime, lookbackMinutes)) continue;
 
     const unfinishedCount = countUnfinishedDailyTasks(
       tasksByUser.get(profile.id) ?? [],
@@ -121,6 +134,19 @@ export function buildReminderJobs(now: Date, dataset: ReminderDataset): Reminder
   }
 
   return jobs;
+}
+
+export function isReminderDueInWindow(
+  localTime: string,
+  reminderTime: string,
+  lookbackMinutes = REMINDER_LOOKBACK_MINUTES,
+): boolean {
+  const localMinute = timeToMinuteOfDay(localTime);
+  const reminderMinute = timeToMinuteOfDay(normalizeReminderTime(reminderTime));
+  if (localMinute === null || reminderMinute === null) return false;
+
+  const windowMinutes = normalizeLookbackMinutes(lookbackMinutes);
+  return localMinute >= reminderMinute && localMinute < reminderMinute + windowMinutes;
 }
 
 export function isDeadSubscriptionStatus(status: number): boolean {
@@ -158,15 +184,18 @@ export async function runScheduledReminders(env: ReminderWorkerEnv, now = new Da
   for (const job of jobs) {
     try {
       await sendReminder(job);
+      await recordReminderDelivery(db, env.REMINDER_WORKER_TOKEN, job, "sent");
       result.sent += 1;
     } catch (err) {
       const status = getPushErrorStatus(err);
       if (status && isDeadSubscriptionStatus(status)) {
+        await recordReminderDelivery(db, env.REMINDER_WORKER_TOKEN, job, "deleted", status, getPushErrorMessage(err));
         await deleteSubscription(db, env.REMINDER_WORKER_TOKEN, job.subscriptionId);
         result.deletedSubscriptions += 1;
         continue;
       }
 
+      await recordReminderDelivery(db, env.REMINDER_WORKER_TOKEN, job, "failed", status, getPushErrorMessage(err));
       result.failed += 1;
       console.error(
         JSON.stringify({
@@ -189,6 +218,7 @@ async function loadDueReminderJobs(
 ): Promise<ReminderJob[]> {
   const { data, error } = await db.rpc("get_due_web_push_reminders", {
     worker_token: workerToken,
+    lookback_minutes: REMINDER_LOOKBACK_MINUTES,
     run_at: now.toISOString(),
   });
   if (error) throw error;
@@ -215,6 +245,26 @@ async function sendReminder(job: ReminderJob): Promise<void> {
     }),
     { TTL: 60 * 60 },
   );
+}
+
+async function recordReminderDelivery(
+  db: SupabaseClient,
+  workerToken: string,
+  job: ReminderJob,
+  status: ReminderDeliveryStatus,
+  statusCode: number | null = null,
+  errorMessage: string | null = null,
+): Promise<void> {
+  const { error } = await db.rpc("record_web_push_reminder_delivery", {
+    worker_token: workerToken,
+    subscription_id: job.subscriptionId,
+    delivery_error_message: errorMessage,
+    delivery_status: status,
+    delivery_status_code: statusCode,
+    local_date: job.localDate,
+    reminder_time: job.reminderTime,
+  });
+  if (error) throw error;
 }
 
 async function deleteSubscription(
@@ -270,6 +320,24 @@ function normalizeReminderTime(reminderTime: string): string {
   return reminderTime.slice(0, 5);
 }
 
+function normalizeLookbackMinutes(lookbackMinutes: number | undefined): number {
+  if (typeof lookbackMinutes !== "number" || !Number.isFinite(lookbackMinutes)) {
+    return REMINDER_LOOKBACK_MINUTES;
+  }
+  return Math.min(Math.max(Math.trunc(lookbackMinutes), 1), 30);
+}
+
+function timeToMinuteOfDay(time: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+  return hours * 60 + minutes;
+}
+
 function groupBy<T>(items: T[], keyForItem: (item: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
   for (const item of items) {
@@ -288,4 +356,10 @@ function getPushErrorStatus(err: unknown): number | null {
   if (!err || typeof err !== "object" || !("statusCode" in err)) return null;
   const status = Number((err as { statusCode: unknown }).statusCode);
   return Number.isFinite(status) ? status : null;
+}
+
+function getPushErrorMessage(err: unknown): string | null {
+  if (err instanceof Error) return err.message.slice(0, 500);
+  if (typeof err === "string") return err.slice(0, 500);
+  return null;
 }
