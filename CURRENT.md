@@ -33,6 +33,7 @@
 - Added `reminder-worker/`, a Cloudflare Worker cron source that checks each user's saved IANA timezone and `HH:mm` reminder time every minute.
 - Deployed `donezo-reminders` as a scheduled-only Cloudflare Worker with cron `* * * * *`.
 - Deployed a Cloudflare Pages production deployment for the PWA files on branch `codex/public-launch`.
+- Fixed the web build script to run Expo export with `--clear` so stale Metro cache cannot omit `EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY` from the deployed bundle.
 
 ## Latest public release details
 
@@ -72,6 +73,7 @@ Current PWA reminder work was verified with:
 - Cloudflare Worker secrets are set for `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `REMINDER_WORKER_TOKEN`, `WEB_PUSH_PUBLIC_KEY`, and `WEB_PUSH_PRIVATE_KEY`.
 - Cloudflare Pages production deployment is live on branch `codex/public-launch`; verify the current deployment ID with `npx wrangler pages deployment list --project-name donezo` when needed.
 - Live checks for `https://donezo.mv-builds.com/`, `/manifest.webmanifest`, `/donezo-service-worker.js`, and `/icons/donezo-1024.png` returned `200`; manifest is JSON and service worker is JavaScript with notification handling.
+- Local clean export check confirmed `dist/_expo/static/js/web/index-73c0ffd16633168b24dc2949a4c9ddfc.js` contains the configured web-push public key.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -95,6 +97,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - iPhone browser-tab reminders are still not the reliable path; users should install Donezo to the Home Screen and enable reminders from that installed web app.
 - Exact notification delivery still needs a real iPhone Home Screen test with notification permission allowed, Focus modes not blocking Donezo, and at least one unfinished daily routine at the selected local reminder minute.
 - The live service-worker URL serves JavaScript correctly. Cloudflare custom-domain cache reported `max-age=14400` on the plain service-worker URL even though the latest deployment URL has the intended `no-cache` header; monitor on the next deploy.
+- If Donezo says "Web reminders are not configured on this Donezo build yet," check whether the live web bundle contains `EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY`; the `build:web` script now uses `--clear` to avoid stale Metro env caching.
 - `npx wrangler types --check` is not usable with the current hand-written `reminder-worker/worker-configuration.d.ts`; normal Worker typecheck and dry-run pass.
 
 ## Next exact task

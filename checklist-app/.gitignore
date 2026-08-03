@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 .expo-web-smoke/
+.expo-web-push-key-check/
 dist/
 web-build/
 expo-env.d.ts

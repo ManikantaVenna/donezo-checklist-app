@@ -50,7 +50,7 @@ Use `npm run web` for a manual development-server smoke check.
 
 ## Production
 
-- Web: `npm run build:web` creates the deployable `dist/` directory.
+- Web: `npm run build:web` clears Metro cache and creates the deployable `dist/` directory.
 - Android/iOS: EAS build profiles live in `eas.json`.
 - App identifiers: `com.mvbuilds.donezo`.
 - Public privacy and support pages are copied from `public/` into every web build.
