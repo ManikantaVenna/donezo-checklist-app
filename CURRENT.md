@@ -74,6 +74,7 @@ Current PWA reminder work was verified with:
 - Cloudflare Pages production deployment is live on branch `codex/public-launch`; verify the current deployment ID with `npx wrangler pages deployment list --project-name donezo` when needed.
 - Live checks for `https://donezo.mv-builds.com/`, `/manifest.webmanifest`, `/donezo-service-worker.js`, and `/icons/donezo-1024.png` returned `200`; manifest is JSON and service worker is JavaScript with notification handling.
 - Local clean export check confirmed `dist/_expo/static/js/web/index-73c0ffd16633168b24dc2949a4c9ddfc.js` contains the configured web-push public key.
+- Cloudflare Pages production deployment `075d5085-7459-47be-859e-2e9a1a076d68` source `32fb166` served the fixed bundle; live `https://donezo.mv-builds.com/` now points to `index-73c0ffd16633168b24dc2949a4c9ddfc.js`, and that live bundle contains the web-push public key.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -102,7 +103,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
-Test from an iPhone: open Safari to `https://donezo.mv-builds.com`, Share -> Add to Home Screen, open Donezo from the Home Screen icon, sign in, set timezone/reminder time, tap Enable web reminders in Settings, allow notifications, leave one daily routine unfinished, and wait for the selected local reminder minute.
+On the iPhone Home Screen app, force close and reopen Donezo so it loads the fixed web bundle. Then go to Settings, tap Enable web reminders, allow notifications, leave one daily routine unfinished, and wait for the selected local reminder minute. If it still says web reminders are not configured, delete the Home Screen icon, add it again from Safari, and retest.
 
 ## Fresh-chat opener
 
