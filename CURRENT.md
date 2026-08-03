@@ -32,7 +32,7 @@
 - Changed reminder scheduling so Donezo only schedules/sends reminders when at least one active daily routine is unfinished for the user's selected local date.
 - Added `reminder-worker/`, a Cloudflare Worker cron source that checks each user's saved IANA timezone and `HH:mm` reminder time every minute.
 - Deployed `donezo-reminders` as a scheduled-only Cloudflare Worker with cron `* * * * *`.
-- Deployed Cloudflare Pages production deployment `dfa1a09c-26f6-4ddf-85dc-c7696411d332` for the PWA files.
+- Deployed a Cloudflare Pages production deployment for the PWA files on branch `codex/public-launch`.
 
 ## Latest public release details
 
@@ -70,7 +70,7 @@ Current PWA reminder work was verified with:
 - Supabase security advisor: only expected warnings for token-guarded public `SECURITY DEFINER` RPCs plus unrelated leaked-password-protection setting.
 - Cloudflare Worker `donezo-reminders` deploy version `b6241ddb-8ddc-4c1f-a161-6e7d5fea6acf` is live with cron `* * * * *`.
 - Cloudflare Worker secrets are set for `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `REMINDER_WORKER_TOKEN`, `WEB_PUSH_PUBLIC_KEY`, and `WEB_PUSH_PRIVATE_KEY`.
-- Cloudflare Pages production deployment `dfa1a09c-26f6-4ddf-85dc-c7696411d332` is live on branch `codex/public-launch`.
+- Cloudflare Pages production deployment is live on branch `codex/public-launch`; verify the current deployment ID with `npx wrangler pages deployment list --project-name donezo` when needed.
 - Live checks for `https://donezo.mv-builds.com/`, `/manifest.webmanifest`, `/donezo-service-worker.js`, and `/icons/donezo-1024.png` returned `200`; manifest is JSON and service worker is JavaScript with notification handling.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
