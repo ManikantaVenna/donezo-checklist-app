@@ -29,9 +29,7 @@ function reminderContent(unfinishedCount: number) {
   return {
     title: "Daily reset soon",
     body:
-      unfinishedCount === 0
-        ? "Take a moment to review your Donezo checklist."
-        : unfinishedCount === 1
+      unfinishedCount === 1
         ? "You have 1 unfinished daily task."
         : `You have ${unfinishedCount} unfinished daily tasks.`,
   };
@@ -86,7 +84,7 @@ async function scheduleDailyReminderForSequence(
   if (sequence !== scheduleSequence) return;
 
   const nextReminderDate = getNextReminderDate(new Date(), timezone, reminderTime);
-  if (!enabled || !nextReminderDate) return;
+  if (!enabled || unfinishedCount <= 0 || !nextReminderDate) return;
   const content = reminderContent(unfinishedCount);
 
   if (Platform.OS === "web") {

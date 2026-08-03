@@ -6,6 +6,7 @@ const supabaseKey =
 export const env = {
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
   supabaseAnonKey: supabaseKey,
+  webPushPublicKey: process.env.EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY ?? "",
 };
 
 export function hasSupabaseEnv(): boolean {

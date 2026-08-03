@@ -37,6 +37,13 @@ export type ReminderPreferences = {
   reminderTime: string;
 };
 
+export type WebPushSubscriptionInput = {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string | null;
+};
+
 export type ChecklistSnapshot = {
   tasks: Task[];
   projects: Project[];

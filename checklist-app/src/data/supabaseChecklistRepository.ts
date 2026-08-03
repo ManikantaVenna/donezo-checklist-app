@@ -374,4 +374,29 @@ export const supabaseChecklistRepository: ChecklistRepository = {
 
     throwIfError({ error });
   },
+
+  async saveWebPushSubscription(userId, subscription) {
+    const { error } = await client().from("web_push_subscriptions").upsert(
+      {
+        user_id: userId,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+        user_agent: subscription.userAgent ?? null,
+      },
+      { onConflict: "endpoint" },
+    );
+
+    throwIfError({ error });
+  },
+
+  async deleteWebPushSubscription(userId, endpoint) {
+    const { error } = await client()
+      .from("web_push_subscriptions")
+      .delete()
+      .eq("user_id", userId)
+      .eq("endpoint", endpoint);
+
+    throwIfError({ error });
+  },
 };

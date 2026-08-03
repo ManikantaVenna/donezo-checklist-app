@@ -1,6 +1,6 @@
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
-import type { ChecklistSnapshot, Task } from "../domain/types";
+import type { ChecklistSnapshot, Task, WebPushSubscriptionInput } from "../domain/types";
 import { calculateCurrentStreak, getNextLocalMidnight, isCompletedOnDate, localDateKey } from "../domain/dates";
 import { DEFAULT_TIMEZONE } from "../domain/timezones";
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "../data/checklistRepository";
@@ -22,6 +22,8 @@ type ChecklistContextValue = {
   archiveProject: (projectId: string) => Promise<void>;
   updateReminderPreference: (enabled: boolean, reminderTime: string) => Promise<void>;
   updateTimezone: (timezone: string) => Promise<void>;
+  saveWebPushSubscription: (subscription: WebPushSubscriptionInput) => Promise<void>;
+  deleteWebPushSubscription: (endpoint: string) => Promise<void>;
 };
 
 const ChecklistContext = createContext<ChecklistContextValue | null>(null);
@@ -327,6 +329,38 @@ export function ChecklistProvider({
     [beginMutation, endMutation, refresh, repository, userId],
   );
 
+  const saveWebPushSubscription = useCallback(
+    async (subscription: WebPushSubscriptionInput) => {
+      if (!repository.saveWebPushSubscription) {
+        throw new Error("Web reminders are unavailable.");
+      }
+
+      try {
+        await repository.saveWebPushSubscription(userId, subscription);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to save web reminder subscription.");
+        throw err;
+      }
+    },
+    [repository, userId],
+  );
+
+  const deleteWebPushSubscription = useCallback(
+    async (endpoint: string) => {
+      if (!repository.deleteWebPushSubscription) {
+        throw new Error("Web reminders are unavailable.");
+      }
+
+      try {
+        await repository.deleteWebPushSubscription(userId, endpoint);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to remove web reminder subscription.");
+        throw err;
+      }
+    },
+    [repository, userId],
+  );
+
   const applyTaskCompletion = useCallback(
     (task: Task, complete: boolean, localDate: string, completedAtIso: string) => {
       setSnapshot((previous) => {
@@ -517,6 +551,8 @@ export function ChecklistProvider({
       archiveProject,
       updateReminderPreference,
       updateTimezone,
+      saveWebPushSubscription,
+      deleteWebPushSubscription,
     }),
     [
       archiveProject,
@@ -530,6 +566,8 @@ export function ChecklistProvider({
       snapshot,
       todayLocalDate,
       toggleTask,
+      saveWebPushSubscription,
+      deleteWebPushSubscription,
       updateReminderPreference,
       updateTimezone,
     ],

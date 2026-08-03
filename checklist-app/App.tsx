@@ -8,6 +8,7 @@ import { mockChecklistRepository } from "./src/data/mockChecklistRepository";
 import { supabaseChecklistRepository } from "./src/data/supabaseChecklistRepository";
 import { hasSupabaseEnv } from "./src/env";
 import { supabase } from "./src/lib/supabase";
+import { installPwaHeadTags } from "./src/lib/webPush";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { DailyScreen } from "./src/screens/DailyScreen";
 import { ProjectsScreen } from "./src/screens/ProjectsScreen";
@@ -43,6 +44,10 @@ function AppContent() {
   const [tab, setTab] = useState<Tab>("today");
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(() => !supabase);
+
+  useEffect(() => {
+    installPwaHeadTags();
+  }, []);
 
   const signOut = useCallback(async () => {
     if (!supabase) return;

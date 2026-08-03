@@ -58,17 +58,10 @@ describe("mobile daily reminders", () => {
     );
   });
 
-  it("still schedules an enabled reminder when no daily task is unfinished", async () => {
+  it("does not schedule an enabled reminder when no daily task is unfinished", async () => {
     await scheduleDailyReminder(0, true, "19:06", "America/New_York");
 
-    expect(notificationMocks.scheduleNotificationAsync).toHaveBeenCalledOnce();
-    expect(notificationMocks.scheduleNotificationAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        content: expect.objectContaining({
-          body: "Take a moment to review your Donezo checklist.",
-        }),
-      }),
-    );
+    expect(notificationMocks.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it("does not schedule when reminders are turned off", async () => {

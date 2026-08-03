@@ -34,15 +34,17 @@ Donezo is designed to feel calm, fast, and premium. The visual system is a dark 
 - EAS Build for Android APKs
 - Cloudflare Pages for the public web/download site
 - Cloudflare R2 plus a Cloudflare Worker for permanent APK hosting
+- Cloudflare Workers cron plus Web Push for installable web reminders
 
 ## Repository Layout
 
 ```text
 .
-├── checklist-app/        # Expo app, web export, Supabase migrations, tests
-├── release-worker/       # Cloudflare Worker that serves APK files from private R2
-├── docs/superpowers/     # Planning and design notes
-└── AGENTS.md             # Release workflow rules for Codex
+- checklist-app/        # Expo app, web export, Supabase migrations, tests
+- release-worker/       # Cloudflare Worker that serves APK files from private R2
+- reminder-worker/      # Cloudflare Worker cron for PWA Web Push reminders
+- docs/superpowers/     # Planning and design notes
+- AGENTS.md             # Release workflow rules for Codex
 ```
 
 ## App Features
@@ -55,6 +57,7 @@ Donezo currently includes:
 - Realtime sync across signed-in devices.
 - Daily completion tracking and streak calculation.
 - Android local daily reminder scheduling.
+- PWA Web Push reminders for iPhone/Home Screen web users.
 - Timezone selector with live preview.
 - A public support page and privacy page.
 - A permanent Android download page.
@@ -82,6 +85,7 @@ Then set:
 ```text
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY=
 ```
 
 Do not commit real `.env` files or secret keys.
@@ -101,6 +105,14 @@ From `release-worker`:
 ```powershell
 npm run typecheck
 npm test
+```
+
+From `reminder-worker`:
+
+```powershell
+npm run typecheck
+npm test
+npx wrangler deploy --dry-run
 ```
 
 ## Android Releases
@@ -137,6 +149,7 @@ That order prevents users from seeing an update prompt before the APK is actuall
 
 - Supabase row-level security keeps users separated by `auth.uid()`.
 - Real `.env` files are ignored by git.
+- Worker secrets must be set with Wrangler or Cloudflare dashboard, not committed.
 - Signing keys and binary release artifacts are ignored.
 - The R2 bucket is private. APK downloads go through the Worker at `downloads.mv-builds.com`.
 

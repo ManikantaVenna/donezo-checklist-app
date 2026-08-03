@@ -310,6 +310,14 @@ export class MockChecklistRepository implements ChecklistRepository {
   async updateTimezone(userId: string, timezone: string): Promise<void> {
     this.timezones.set(userId, timezone.trim() || DEFAULT_TIMEZONE);
   }
+
+  async saveWebPushSubscription(): Promise<void> {
+    return undefined;
+  }
+
+  async deleteWebPushSubscription(): Promise<void> {
+    return undefined;
+  }
 }
 
 export const mockChecklistRepository = new MockChecklistRepository();

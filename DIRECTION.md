@@ -14,6 +14,7 @@ not afraid to use it.
 - The app should remain simple and smooth; avoid unnecessary complexity.
 - Web browser version matters because people can try it safely without installing an APK.
 - Android APK download page matters because current distribution is outside Play Store.
+- Native iPhone distribution is deferred because the US path requires Apple Developer Program/TestFlight/App Store; use PWA/Home Screen web reminders first.
 - Supabase remains the backend for auth, sync, and per-user data separation.
 - Auth uses email code verification; do not ask users to manage passwords unless the user changes direction.
 - Do not ask Manikanta to paste secret keys/passwords/API keys into chat.
@@ -56,6 +57,7 @@ not afraid to use it.
 ## Rejected or deferred
 
 - Do not move to Play Store automatically; current distribution is web page + APK unless the user asks for Play Store release.
+- Do not move to native iOS/TestFlight/App Store while Manikanta does not want to pay for Apple Developer Program membership.
 - Do not restart Donezo from scratch.
 - Do not use the mobile-design workflow unless the user explicitly asks.
 - Do not assume failed email delivery is an app-code bug without checking Resend logs.
@@ -79,3 +81,4 @@ not afraid to use it.
 - Created public GitHub repo and pushed the project.
 - Cleaned GitHub co-author metadata so public attribution is Manikanta only.
 - Added project continuity files so future chats can resume cleanly.
+- Added and deployed PWA Web Push reminders as the no-Apple-fee iPhone path.

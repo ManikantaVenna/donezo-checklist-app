@@ -24,6 +24,14 @@ const fakeChannel = {
 const removeChannel = vi.fn();
 
 type UpdateCall = { taskId: string; sortOrder: number };
+type PushUpsertCall = {
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+};
+type PushDeleteCall = { userId: string; endpoint: string };
 
 const updateState: {
   calls: UpdateCall[];
@@ -31,6 +39,14 @@ const updateState: {
 } = {
   calls: [],
   failOnCall: null,
+};
+
+const pushState: {
+  upserts: PushUpsertCall[];
+  deletes: PushDeleteCall[];
+} = {
+  upserts: [],
+  deletes: [],
 };
 
 function fakeTasksTable() {
@@ -42,6 +58,23 @@ function fakeTasksTable() {
           if (updateState.failOnCall === updateState.calls.length) {
             return { error: new Error("write failed") };
           }
+          return { error: null };
+        },
+      }),
+    }),
+  };
+}
+
+function fakeWebPushSubscriptionsTable() {
+  return {
+    upsert: async (values: PushUpsertCall, _options: { onConflict: string }) => {
+      pushState.upserts.push(values);
+      return { error: null };
+    },
+    delete: () => ({
+      eq: (_userColumn: string, userId: string) => ({
+        eq: async (_endpointColumn: string, endpoint: string) => {
+          pushState.deletes.push({ userId, endpoint });
           return { error: null };
         },
       }),
@@ -61,7 +94,10 @@ vi.mock("../lib/supabase", () => ({
   supabase: {
     channel: vi.fn(() => fakeChannel),
     removeChannel,
-    from: vi.fn(() => fakeTasksTable()),
+    from: vi.fn((tableName: string) => {
+      if (tableName === "web_push_subscriptions") return fakeWebPushSubscriptionsTable();
+      return fakeTasksTable();
+    }),
     rpc: vi.fn(async (fn: string, args: unknown) => {
       rpcState.calls.push({ fn, args });
       return rpcState.result;
@@ -74,11 +110,49 @@ afterEach(() => {
   channelState.statusCallback = null;
   updateState.calls = [];
   updateState.failOnCall = null;
+  pushState.upserts = [];
+  pushState.deletes = [];
   rpcState.calls = [];
   rpcState.result = { error: null };
   vi.clearAllMocks();
   // The repository memoizes a missing reorder RPC; give each test a fresh module.
   vi.resetModules();
+});
+
+describe("supabaseChecklistRepository web push subscriptions", () => {
+  it("saves a browser push subscription for the signed-in user", async () => {
+    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+
+    await supabaseChecklistRepository.saveWebPushSubscription!("user-1", {
+      endpoint: "https://push.example/subscription-1",
+      p256dh: "client-public-key",
+      auth: "client-auth-secret",
+      userAgent: "Mobile Safari",
+    });
+
+    expect(pushState.upserts).toEqual([
+      {
+        user_id: "user-1",
+        endpoint: "https://push.example/subscription-1",
+        p256dh: "client-public-key",
+        auth: "client-auth-secret",
+        user_agent: "Mobile Safari",
+      },
+    ]);
+  });
+
+  it("deletes a browser push subscription for the signed-in user", async () => {
+    const { supabaseChecklistRepository } = await import("./supabaseChecklistRepository");
+
+    await supabaseChecklistRepository.deleteWebPushSubscription!("user-1", "https://push.example/subscription-1");
+
+    expect(pushState.deletes).toEqual([
+      {
+        userId: "user-1",
+        endpoint: "https://push.example/subscription-1",
+      },
+    ]);
+  });
 });
 
 describe("supabaseChecklistRepository.subscribeToChanges", () => {

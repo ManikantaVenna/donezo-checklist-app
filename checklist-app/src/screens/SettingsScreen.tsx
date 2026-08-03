@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, AppState, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
+import { env } from "../env";
+import { getWebPushSupport, subscribeToWebPush } from "../lib/webPush";
 import {
   DEFAULT_TIMEZONE,
   filterTimezoneOptions,
@@ -22,7 +24,7 @@ type SettingsScreenProps = {
 };
 
 export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSignOut }: SettingsScreenProps) {
-  const { snapshot, loading, error, updateReminderPreference, updateTimezone } = useChecklist();
+  const { snapshot, loading, error, updateReminderPreference, updateTimezone, saveWebPushSubscription } = useChecklist();
   const { installedVersion, openDownloadPage } = useAppUpdate();
   const knownRelease = useKnownAppRelease();
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
@@ -33,6 +35,8 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
   const [previewNow, setPreviewNow] = useState(() => new Date());
   const [timezonePickerOpen, setTimezonePickerOpen] = useState(false);
   const [timezoneSearch, setTimezoneSearch] = useState("");
+  const [webReminderBusy, setWebReminderBusy] = useState(false);
+  const [webReminderStatus, setWebReminderStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -101,9 +105,40 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
     setBusy(false);
   };
 
+  const enableWebReminders = async () => {
+    if (usingDemoMode) {
+      setWebReminderStatus("Sign in to sync web reminders with your Donezo account.");
+      return;
+    }
+
+    const support = getWebPushSupport();
+    if (!support.supported) {
+      setWebReminderStatus(support.reason ?? "This browser cannot receive web reminders.");
+      return;
+    }
+
+    if (!env.webPushPublicKey) {
+      setWebReminderStatus("Web reminders are not configured on this Donezo build yet.");
+      return;
+    }
+
+    setWebReminderBusy(true);
+    setWebReminderStatus(null);
+    try {
+      const subscription = await subscribeToWebPush(env.webPushPublicKey);
+      await saveWebPushSubscription(subscription);
+      setWebReminderStatus("Web reminders are enabled for this device.");
+    } catch (err) {
+      setWebReminderStatus(err instanceof Error ? err.message : "Unable to enable web reminders.");
+    } finally {
+      setWebReminderBusy(false);
+    }
+  };
+
   const formattedReminderTime = reminderEnabled ? formatReminderTime(reminderTime) : "Off";
   const selectedTimezone = findTimezoneOption(timezone);
   const filteredTimezones = filterTimezoneOptions(timezoneSearch);
+  const webPushSupport = Platform.OS === "web" ? getWebPushSupport() : { supported: false, reason: "" };
 
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
@@ -219,6 +254,27 @@ export function SettingsScreen({ accountEmail = null, usingDemoMode = true, onSi
             : "Turn on daily reminders when you need an end-of-day nudge."}
         </Text>
       </View>
+
+      {Platform.OS === "web" ? (
+        <View style={styles.panel}>
+          <Text style={styles.label}>IPHONE WEB REMINDERS</Text>
+          <Text style={styles.detail}>
+            For iPhone, open Donezo in Safari, add it to the Home Screen, then open Donezo from that icon before enabling reminders.
+          </Text>
+          <Text style={styles.detail}>
+            Donezo will only send at {formattedReminderTime} in {selectedTimezone?.label ?? timezone} when daily routines are unfinished.
+          </Text>
+          {!webPushSupport.supported ? <Text style={styles.inlineError}>{webPushSupport.reason}</Text> : null}
+          {webReminderStatus ? <Text style={styles.webReminderStatus}>{webReminderStatus}</Text> : null}
+          <View style={styles.webReminderAction}>
+            <AppButton
+              label={webReminderBusy ? "Enabling..." : "Enable web reminders"}
+              onPress={enableWebReminders}
+              disabled={webReminderBusy || !webPushSupport.supported}
+            />
+          </View>
+        </View>
+      ) : null}
 
       <AppButton label={busy ? "Saving..." : "Save settings"} onPress={saveSettings} disabled={busy} />
 
@@ -501,6 +557,16 @@ const styles = StyleSheet.create({
   },
   signOut: {
     marginTop: 14,
+  },
+  webReminderAction: {
+    marginTop: 14,
+  },
+  webReminderStatus: {
+    marginTop: 10,
+    color: colors.accentSoft,
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    lineHeight: 18,
   },
   aboutLinks: {
     flexDirection: "row",

@@ -20,8 +20,9 @@
 - `checklist-app/src/data/mockChecklistRepository.ts` - demo/mock persistence.
 - `checklist-app/src/domain/` - dates, reminders, ordering, sorting, streak tiers, release parsing, timezones.
 - `checklist-app/src/lib/` - Supabase client, reminders integration, app release checks, version helpers.
+- `checklist-app/src/lib/webPush.ts` - browser PWA/Web Push support helpers.
 - `checklist-app/assets/` - icons, logo, splash, fonts, streak badge images.
-- `checklist-app/public/` - web static pages, download page, privacy/support pages, release manifest.
+- `checklist-app/public/` - web static pages, PWA manifest/service worker/icons, `_headers`, download page, privacy/support pages, release manifest.
 - `checklist-app/supabase/migrations/` - Supabase schema, indexes, reorder RPC, policy migrations.
 
 ## Release/download infrastructure
@@ -33,6 +34,9 @@
 - `checklist-app/public/download/index.html` - public Android download page.
 - `checklist-app/public/download.js` - download page behavior.
 - `checklist-app/public/releases/android/latest.json` - Android update manifest.
+- `reminder-worker/` - Cloudflare Worker cron for PWA Web Push reminders.
+- `reminder-worker/src/reminders.ts` - reminder due-time filtering, unfinished daily checks, push sending, dead subscription cleanup.
+- `reminder-worker/wrangler.jsonc` - one-minute cron trigger and Worker config.
 
 ## Design/plans
 
@@ -40,6 +44,8 @@
 - `docs/superpowers/plans/2026-07-17-checklist-app-implementation.md` - original implementation plan.
 - `docs/superpowers/specs/2026-07-19-streak-rewards-and-app-updates-design.md` - streak rewards/update system design.
 - `docs/superpowers/plans/2026-07-19-streak-rewards-and-app-updates-implementation.md` - streak rewards/update implementation plan.
+- `docs/superpowers/specs/2026-08-03-pwa-reminders-design.md` - PWA/Web Push reminders design.
+- `docs/superpowers/plans/2026-08-03-pwa-reminders-implementation.md` - PWA/Web Push reminders implementation plan.
 
 ## Tests / verification
 
@@ -57,6 +63,14 @@ From `release-worker/`:
 ```powershell
 npm run typecheck
 npm test
+```
+
+From `reminder-worker/`:
+
+```powershell
+npm run typecheck
+npm test
+npx wrangler deploy --dry-run
 ```
 
 Live release verification should include:
@@ -78,10 +92,12 @@ Live release verification should include:
 - Resend verified sending domain/subdomain: `mail.mv-builds.com`
 - Cloudflare R2 bucket: `donezo-releases`
 - Cloudflare Worker: `donezo-release-downloads`
+- Cloudflare Worker for reminders: `donezo-reminders`, deployed as a scheduled-only Worker with cron `* * * * *`
 - Cloudflare Pages project: `donezo`
 
 ## Secrets
 
 - `checklist-app/.env` is gitignored; never commit it.
+- `reminder-worker/.dev.vars` is gitignored; use Wrangler/Cloudflare secrets for `SUPABASE_PUBLISHABLE_KEY`, `REMINDER_WORKER_TOKEN`, VAPID private key, and related Worker secrets.
 - Signing keys/APKs/AABs/build outputs should remain untracked.
 - Do not paste secret keys, passwords, API keys, or signing credentials into chat.

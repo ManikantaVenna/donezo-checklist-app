@@ -26,6 +26,7 @@ To connect the app to Supabase, copy `.env.example` to `.env`, replace both plac
 
 - `EXPO_PUBLIC_SUPABASE_URL`
 - `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY` for web/PWA reminder subscription builds
 
 The migration enables row-level security and adds the checklist tables to Supabase Realtime so signed-in devices refresh automatically when tasks, projects, completions, timezone, or reminder settings change.
 
@@ -33,8 +34,9 @@ The migration enables row-level security and adds the checklist tables to Supaba
 
 Daily reset is calculated from the selected timezone. The default is `America/New_York`, and the default reminder is `23:00`.
 
-- Native: schedules the next reminder at the selected timezone's reminder instant when the app is active.
-- Web: uses the browser Notification API while the app tab is open and notification permission is granted.
+- Native: schedules the next reminder at the selected timezone's reminder instant only when at least one daily routine is unfinished.
+- Web/PWA: registers a service worker, saves a Push API subscription, and relies on the separate `reminder-worker` cron to send only when daily routines are unfinished.
+- iPhone users must add Donezo to the Home Screen from Safari and open that Home Screen app before enabling web reminders.
 
 ## Checks
 
@@ -52,6 +54,7 @@ Use `npm run web` for a manual development-server smoke check.
 - Android/iOS: EAS build profiles live in `eas.json`.
 - App identifiers: `com.mvbuilds.donezo`.
 - Public privacy and support pages are copied from `public/` into every web build.
+- PWA reminders are live on the production web app; new environments still require the web push subscription migrations, VAPID/Supabase Worker secrets outside chat, `reminder-worker`, and `EXPO_PUBLIC_WEB_PUSH_PUBLIC_KEY`.
 
 ### Android release publication order
 

@@ -1,4 +1,4 @@
-import type { ChecklistSnapshot, Task, TaskType } from "../domain/types";
+import type { ChecklistSnapshot, Task, TaskType, WebPushSubscriptionInput } from "../domain/types";
 import type { TaskOrderChange } from "../domain/ordering";
 
 export type { MoveDirection, TaskOrderChange } from "../domain/ordering";
@@ -29,4 +29,6 @@ export type ChecklistRepository = {
   archiveProject(userId: string, projectId: string): Promise<void>;
   updateReminderPreference(userId: string, enabled: boolean, reminderTime: string): Promise<void>;
   updateTimezone(userId: string, timezone: string): Promise<void>;
+  saveWebPushSubscription?(userId: string, subscription: WebPushSubscriptionInput): Promise<void>;
+  deleteWebPushSubscription?(userId: string, endpoint: string): Promise<void>;
 };
