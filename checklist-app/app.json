@@ -2,7 +2,7 @@
   "expo": {
     "name": "Donezo",
     "slug": "donezo",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "scheme": "donezo",
     "orientation": "portrait",
     "icon": "./assets/donezo-app-icon.png",
