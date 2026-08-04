@@ -4,12 +4,12 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current commit before this closed-app reminder fix:** `ba042d5`
+- **Current commit before task-ordering planning:** `19ec886`
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
 - **Current public Android release:** `1.0.7` build `10`
-- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and verify PWA reminders on a real iPhone Home Screen install.
+- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and improve task ordering so new tasks appear at the top and existing tasks are easy to rearrange.
 - **Important don'ts:** do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask for secrets in chat, do not claim release/update prompts are live until APK and `latest.json` are verified live.
 
 ## What changed recently
@@ -37,6 +37,7 @@
 - Hardened iPhone/Home Screen PWA reminder delivery so the Worker checks a short retry window after the selected reminder minute, stores private delivery records, and avoids duplicate successful sends for the same subscription/local date/time.
 - Fixed a closed-app PWA reminder outage where an invisible BOM/whitespace character in Worker env values made Supabase reject the Worker API key before any delivery attempt could be recorded.
 - Hardened the PWA service worker notification display by giving each reminder a unique notification tag, enabling `renotify` where supported, and registering the service worker through a versioned URL to bypass sticky custom-domain cache.
+- User reported the iPhone/Home Screen reminder fix appears to be working and asked to save that state.
 
 ## Latest public release details
 
@@ -99,6 +100,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - PWA Web Push reminders are live for signed-in web users who add Donezo to the iPhone Home Screen, open it from that icon, enable web reminders in Settings, and allow notifications.
 - PWA Web Push server delivery now has a 5-minute after-time retry window and private delivery records, so a slightly delayed cron run should still send once if daily routines remain unfinished.
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
+- User has confirmed the reminder behavior appears to be working in real use.
 - Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
 
@@ -116,10 +118,10 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
- Ask the user whether the iPhone showed the `13:56` New York notification that Apple accepted at `2026-08-04 17:56:52 UTC`. For a fresh test, have the iPhone user open Donezo from the Home Screen once to update the service worker, leave at least one daily routine unfinished, set a reminder a few minutes ahead, close/lock the phone, and then inspect `private.web_push_reminder_deliveries` after the reminder minute if no banner appears.
+Confirm the task-ordering approach with the user, then implement it narrowly: new tasks should appear at the top of their list, and existing tasks should get an easier way to jump/rearrange without tapping one-step arrows repeatedly.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed for iPhone/Home Screen web users, `donezo-reminders` cron is live with deploy version `d5592f89-dba1-4439-a4ac-128880146c3e`, the Worker now strips hidden BOM/whitespace from env values before calling Supabase, and Supabase recorded an Apple `sent` delivery for the New York iPhone reminder at `2026-08-04 17:56:52 UTC`. The live web bundle registers `/donezo-service-worker.js?v=20260804-reminders` and the service worker uses unique notification tags. Android 1.0.7 build 10 remains the latest APK, and Android native reminder source changes still need a future APK plus latest.json release before Android users get them. Next task: ask whether the iPhone visibly showed the accepted notification; for a fresh test, have the user open Donezo from the Home Screen once, set a new reminder a few minutes ahead with an unfinished daily routine, close/lock the phone, and inspect `private.web_push_reminder_deliveries` if no banner appears. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed for iPhone/Home Screen web users, the Worker fix is live as deploy version `d5592f89-dba1-4439-a4ac-128880146c3e`, Supabase recorded Apple `sent`, and the user says the reminder fix appears to be working. Android 1.0.7 build 10 remains the latest APK, and Android native reminder source changes still need a future APK plus latest.json release before Android users get them. Next task: confirm and implement the task-ordering improvement: new tasks should appear at the top, and existing tasks should be easier to move/jump/rearrange without repeated one-step arrow taps. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
 ```
