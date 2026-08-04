@@ -4,12 +4,12 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current checkpoint:** task-ordering implementation is complete in source; commit and push this checkpoint before starting the next task.
+- **Current checkpoint:** task-ordering implementation is complete, committed, pushed, and deployed to the web/PWA. Android `1.0.8` build `11` is queued in EAS and blocked by Expo Android builder availability.
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
 - **Current public Android release:** `1.0.7` build `10`
-- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and improve task ordering so new tasks appear at the top and existing tasks are easy to rearrange.
+- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and finish the Android `1.0.8` release as soon as EAS produces the queued APK.
 - **Important don'ts:** do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask for secrets in chat, do not claim release/update prompts are live until APK and `latest.json` are verified live.
 
 ## What changed recently
@@ -40,6 +40,10 @@
 - User reported the iPhone/Home Screen reminder fix appears to be working and asked to save that state.
 - Implemented the approved task-ordering UI in source: new tasks now insert at the top of their own list, task rows use a left drag handle instead of up/down arrows, Delete is now a compact trash icon, tapping task text still toggles completion, daily streak badges remain, and deleting a task shows a bottom Undo bar.
 - Added direct target-position reorder planning so a dragged task can be saved in one reorder write, plus undo restore/unarchive support for accidental task deletes.
+- Committed and pushed task-ordering as `dd8841f feat: add drag task ordering`.
+- Prepared Android release version `1.0.8` as `af9311a release: prepare Donezo 1.0.8`.
+- Deployed the latest web/PWA build to Cloudflare Pages deployment `ddd05d77.donezo-ehw.pages.dev`; live custom domain `https://donezo.mv-builds.com/` serves bundle `index-31eaea0ea585f85eb10708a8517c5279.js`.
+- Started EAS Android APK build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` for Donezo `1.0.8` build `11`, but it remains `IN_QUEUE` because Expo/EAS Android builders are degraded on `2026-08-04`.
 
 ## Latest public release details
 
@@ -95,6 +99,9 @@ Current task-ordering work was verified with:
 - `npm run typecheck` in `checklist-app`
 - `npm test` in `checklist-app` -> 21 files / 179 tests passed
 - `npm run build:web` in `checklist-app`
+- Cloudflare Pages deploy from `checklist-app/dist` -> deployment `https://ddd05d77.donezo-ehw.pages.dev`
+- Live `https://donezo.mv-builds.com/` and preview deployment both serve `index-31eaea0ea585f85eb10708a8517c5279.js`
+- Live `https://donezo.mv-builds.com/releases/android/latest.json` intentionally still points to Android `1.0.7` build `10` until the new APK is built, uploaded, and verified.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -109,7 +116,8 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - PWA Web Push server delivery now has a 5-minute after-time retry window and private delivery records, so a slightly delayed cron run should still send once if daily routines remain unfinished.
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
 - User has confirmed the reminder behavior appears to be working in real use.
-- Task-ordering improvements are implemented in source and verified locally, but are not live on `donezo.mv-builds.com` or in an Android APK until the web app is deployed and/or a new Android release is built and published.
+- Task-ordering improvements are implemented, verified, committed, pushed, and live for web/PWA users on `donezo.mv-builds.com`.
+- Android `1.0.8` build `11` is queued in EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba`; do not update `latest.json` or claim Android update prompts are live until that APK exists, is uploaded to R2, and is verified.
 - Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
 
@@ -127,10 +135,10 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
-Ask the user to test/approve the task-ordering implementation. If approved for public release, deploy the web app and prepare a new Android release following `AGENTS.md` release order.
+Poll EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba`. If it finishes, download the APK, upload `android/Donezo-1.0.8-build-11.apk` to R2, verify URL/size/SHA/range support, then update and deploy `latest.json` last. If it fails during the Expo Android incident, decide whether to retry after checking Expo status and EAS logs.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and task-ordering improvements are implemented in source: new tasks insert at the top, rows use a left drag handle instead of arrows, Delete is a trash icon, and task delete has a bottom Undo bar. Android 1.0.7 build 10 remains the latest APK; these task-ordering changes are not live on the public web app or Android until deployed/released. Next task: let the user test/approve the task-ordering implementation, then deploy web and/or prepare Android release only if requested/approved. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and task-ordering improvements are implemented, committed, pushed, and live on the web/PWA: new tasks insert at the top, rows use a left drag handle instead of arrows, Delete is a trash icon, and task delete has a bottom Undo bar. Android 1.0.7 build 10 remains the latest public APK/latest.json. Android 1.0.8 build 11 was prepared and EAS build b06a6991-99bd-439a-9ba7-96eddc0f84ba is queued, but Expo/EAS Android builders are degraded on 2026-08-04. Next task: poll that EAS build; when it finishes, download/upload/verify the APK, then update and deploy latest.json last. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
 ```
