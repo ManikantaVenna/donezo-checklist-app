@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(221,179,79,0.055)",
   },
   dragHandleTouch: {
-    width: 42,
-    minHeight: 50,
+    width: 48,
+    minHeight: 54,
     alignItems: "center",
     justifyContent: "center",
   },

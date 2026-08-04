@@ -4,8 +4,10 @@ export type DragTargetLayout = {
   height: number;
 };
 
-const DOWN_COMMIT_RATIO = 0.58;
-const UP_COMMIT_RATIO = 0.32;
+const DOWN_COMMIT_RATIO = 0.65;
+const UP_COMMIT_RATIO = 0.35;
+const EDGE_SCROLL_ZONE = 56;
+const EDGE_SCROLL_STEP = 8;
 
 export function getStableDragTargetIndex(
   layouts: DragTargetLayout[],
@@ -29,4 +31,11 @@ export function getStableDragTargetIndex(
   }
 
   return targetIndex;
+}
+
+export function getEdgeAutoScrollDelta(moveY: number, viewportHeight: number): number {
+  if (viewportHeight <= 0) return 0;
+  if (moveY < EDGE_SCROLL_ZONE) return -EDGE_SCROLL_STEP;
+  if (moveY > viewportHeight - EDGE_SCROLL_ZONE) return EDGE_SCROLL_STEP;
+  return 0;
 }
