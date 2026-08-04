@@ -8,6 +8,7 @@ import type {
   StyleProp,
   ViewStyle,
 } from "react-native";
+import { getStableDragTargetIndex } from "../domain/dragTarget";
 import type { Task } from "../domain/types";
 
 type RowLayout = {
@@ -47,8 +48,8 @@ type ReorderableTaskListProps = {
 };
 
 const FALLBACK_ROW_HEIGHT = 70;
-const EDGE_SCROLL_ZONE = 86;
-const EDGE_SCROLL_STEP = 20;
+const EDGE_SCROLL_ZONE = 68;
+const EDGE_SCROLL_STEP = 14;
 
 export function ReorderableTaskList({
   tasks,
@@ -137,7 +138,11 @@ export function ReorderableTaskList({
     const scrollDelta = scrollOffsetRef.current - currentDragState.startScrollY;
     const dragY = gesture.dy + scrollDelta;
     const middleY = currentDragState.startMiddleY + dragY;
-    const targetIndex = findTargetIndex(currentDragState.layouts, middleY);
+    const targetIndex = getStableDragTargetIndex(
+      currentDragState.layouts,
+      middleY,
+      currentDragState.targetIndex,
+    );
 
     dragOffsetY.setValue(dragY);
     maybeAutoScroll(gesture.moveY, scrollViewRef, scrollOffsetRef.current);
@@ -200,7 +205,8 @@ function createDragHandleProps(
 ): GestureResponderHandlers {
   return PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_event, gesture) => taskCount > 1 && Math.abs(gesture.dy) > 2,
+    onMoveShouldSetPanResponder: (_event, gesture) =>
+      taskCount > 1 && Math.abs(gesture.dy) > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.15,
     onPanResponderGrant: () => beginDrag(task, index),
     onPanResponderMove: (_event, gesture) => updateDrag(gesture),
     onPanResponderRelease: finishDrag,
@@ -235,13 +241,6 @@ function getNeighborShift(index: number, dragState: DragState): number {
   }
 
   return 0;
-}
-
-function findTargetIndex(layouts: DragLayout[], middleY: number): number {
-  if (layouts.length === 0) return 0;
-
-  const target = layouts.find((layout) => middleY < layout.y + layout.height / 2);
-  return target ? target.index : layouts.length - 1;
 }
 
 function maybeAutoScroll(

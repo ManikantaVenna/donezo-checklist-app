@@ -34,10 +34,12 @@ export function TaskRow({
         accessibilityHint="Drag to move this task."
         accessibilityLabel={`Reorder ${task.title}`}
         accessibilityRole="button"
-        style={[styles.dragHandle, isDragging && styles.dragHandleActive]}
+        style={styles.dragHandleTouch}
         {...dragHandleProps}
       >
-        <GripIcon active={isDragging} />
+        <View style={[styles.dragHandle, isDragging && styles.dragHandleActive]}>
+          <GripIcon active={isDragging} />
+        </View>
       </View>
       <Pressable
         accessibilityRole="checkbox"
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
     minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
+    gap: 4,
     marginBottom: 8,
     paddingVertical: 9,
     paddingRight: 9,
@@ -130,6 +132,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(221,179,79,0.16)",
     backgroundColor: "rgba(221,179,79,0.055)",
+  },
+  dragHandleTouch: {
+    width: 42,
+    minHeight: 50,
+    alignItems: "center",
+    justifyContent: "center",
   },
   dragHandleActive: {
     borderColor: "rgba(255,226,160,0.54)",

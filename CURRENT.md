@@ -46,6 +46,7 @@
 - Canceled EAS Android APK build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` for Donezo `1.0.8` build `11` before any APK existed or `latest.json` changed.
 - Polished the task-row design after user feedback: the drag handle is now a warm gold control, the trash action is a cleaner red icon button, and the held row lifts/follows the pointer while adjacent rows spring aside.
 - Deployed the polished task-ordering web/PWA build to Cloudflare Pages deployment `1452a3e8.donezo-ehw.pages.dev`; live custom domain `https://donezo.mv-builds.com/` serves bundle `index-1ede591174a659a3e0f7e53779538773.js`.
+- Stabilized task drag control after user feedback: added a tested drag dead zone so rows do not flip back and forth near boundaries, enlarged the handle touch area while preserving the gold handle look, made drag activation more deliberate, and softened edge auto-scroll.
 
 ## Latest public release details
 
@@ -107,6 +108,7 @@ Current task-ordering work was verified with:
 - Cloudflare Pages deploy from `checklist-app/dist` -> deployment `https://1452a3e8.donezo-ehw.pages.dev`
 - Live `https://donezo.mv-builds.com/` and preview deployment both serve `index-1ede591174a659a3e0f7e53779538773.js`
 - Live `https://donezo.mv-builds.com/releases/android/latest.json` intentionally still points to Android `1.0.7` build `10` until the new APK is built, uploaded, and verified.
+- Task drag control fix verified with `npm test -- src/domain/dragTarget.test.ts`, `npm test -- src/domain/dragTarget.test.ts src/components/TaskRow.test.tsx`, `npm run typecheck`, `npm test` -> 22 files / 182 tests passed, `npm run build:web`, and a no-secrets Playwright/Chrome mobile drag probe.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -122,6 +124,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
 - User has confirmed the reminder behavior appears to be working in real use.
 - Task-ordering improvements are implemented, verified, committed, pushed, and live for web/PWA users on `donezo.mv-builds.com`.
+- A drag-control stability fix is implemented and verified locally; deploy it to web/PWA before asking the user to retest.
 - Android `1.0.8` build `11` EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` was canceled before publication; do not update `latest.json` or claim Android update prompts are live until a future APK exists, is uploaded to R2, and is verified.
 - Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
