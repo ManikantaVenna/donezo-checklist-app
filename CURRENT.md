@@ -4,7 +4,7 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current checkpoint:** task-ordering implementation is complete, committed, pushed, and deployed to the web/PWA, including the calmer drag-control fix after user testing. The first Android `1.0.8` build `11` attempt was canceled before publication so the task-row design could be polished first.
+- **Current checkpoint:** task-ordering implementation is complete, committed, pushed, and deployed to the web/PWA. After real-device testing, the drag/grip reorder UI was removed and the app returned to the old left check-circle + right arrow controls, while keeping the compact trash icon and new-task-at-top behavior. The first Android `1.0.8` build `11` attempt was canceled before publication so the task-row design could be polished first.
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
@@ -51,6 +51,10 @@
 - Calmed task drag control again after real-device feedback: removed the neighboring row spring/shift behavior that made the list feel like it was fighting the finger, kept only the held row moving during drag, made the drop threshold responsive but stable, kept the larger handle, and made edge auto-scroll gentler.
 - Committed and pushed the calmer drag-control fix as `175b691 fix: calm drag reorder controls`.
 - Deployed the calmer drag-control web/PWA build to Cloudflare Pages deployment `c24d72e4.donezo-ehw.pages.dev`; live custom domain `https://donezo.mv-builds.com/` serves bundle `index-d0b7b6902c4be647c30f3797448629a0.js`.
+- Reverted away from the drag/grip UI after user testing: task rows again use the old left check circle and right up/down arrows, Delete remains the newer compact trash icon, delete Undo is preserved, and new tasks still insert at the top.
+- Removed the now-unused `ReorderableTaskList` and `dragTarget` helper/test files.
+- Committed and pushed the row-control restore as `67d78e6 fix: restore arrow task controls`.
+- Deployed the restored arrow-control web/PWA build to Cloudflare Pages deployment `e9258f2d.donezo-ehw.pages.dev`; live custom domain `https://donezo.mv-builds.com/` serves bundle `index-e8dda6aae1390ea54ffdab5d68e93733.js`.
 
 ## Latest public release details
 
@@ -119,6 +123,11 @@ Current task-ordering work was verified with:
 - Cloudflare Pages deploy from `checklist-app/dist` -> deployment `https://c24d72e4.donezo-ehw.pages.dev`
 - Live `https://donezo.mv-builds.com/` and preview deployment both serve `index-d0b7b6902c4be647c30f3797448629a0.js`
 - Live `https://donezo.mv-builds.com/releases/android/latest.json` intentionally still points to Android `1.0.7` build `10` until the new APK is built, uploaded, and verified.
+- Arrow-control restore verified with a red/green `npm test -- src/components/TaskRow.test.tsx`, `npm run typecheck`, `npm test` -> 21 files / 179 tests passed, `npm run build:web`, and a no-secrets Chrome mobile screenshot at `output/playwright/arrow-row-restored-mobile.png` showing the left check circle, right arrows, and trash icon.
+- Cloudflare Pages deploy from `checklist-app/dist` -> deployment `https://e9258f2d.donezo-ehw.pages.dev`
+- Live `https://donezo.mv-builds.com/` and preview deployment both serve `index-e8dda6aae1390ea54ffdab5d68e93733.js`
+- Live bundle no longer contains the old drag strings (`Drag to move this task`, `ReorderableTaskList`) and still contains the arrow/delete action strings.
+- Live `https://donezo.mv-builds.com/releases/android/latest.json` intentionally still points to Android `1.0.7` build `10` until the new APK is built, uploaded, and verified.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -134,7 +143,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
 - User has confirmed the reminder behavior appears to be working in real use.
 - Task-ordering improvements are implemented, verified, committed, pushed, and live for web/PWA users on `donezo.mv-builds.com`.
-- The calmer drag-control fix is deployed to web/PWA; ask the user to retest on the live site/Home Screen PWA before preparing any Android APK release.
+- Current task row ordering uses old-style arrow controls, not drag/grip controls. Ask the user to retest on the live site/Home Screen PWA before preparing any Android APK release.
 - Android `1.0.8` build `11` EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` was canceled before publication; do not update `latest.json` or claim Android update prompts are live until a future APK exists, is uploaded to R2, and is verified.
 - Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
@@ -153,10 +162,10 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
-Ask the user to test the calmer task-row ordering on the live web/PWA. If approved for Android release later, start a fresh EAS Android build, check the actual remote build number EAS assigns, then upload/verify the APK and update `latest.json` last.
+Ask the user to test the restored arrow task-row ordering on the live web/PWA. If approved for Android release later, start a fresh EAS Android build, check the actual remote build number EAS assigns, then upload/verify the APK and update `latest.json` last.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and polished task-ordering improvements are live on the web/PWA: new tasks insert at the top, rows use a warm gold left drag handle instead of arrows, Delete is a matching trash icon, task delete has a bottom Undo bar, and the latest drag fix keeps neighboring rows still while the held row follows the finger, with responsive-but-stable drop thresholds and gentler edge auto-scroll. Android 1.0.7 build 10 remains the latest public APK/latest.json. The first Android 1.0.8 build 11 attempt was canceled before publication; do not update latest.json until a future APK is built/uploaded/verified. Next task: ask the user to test/approve the live web/PWA ordering; only then consider a fresh Android release. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and task-ordering improvements are live on the web/PWA: new tasks insert at the top, rows use the old left check circle and right up/down arrow controls, Delete is a matching trash icon, and task delete has a bottom Undo bar. The drag/grip reorder UI was removed after user testing. Android 1.0.7 build 10 remains the latest public APK/latest.json. The first Android 1.0.8 build 11 attempt was canceled before publication; do not update latest.json until a future APK is built/uploaded/verified. Next task: ask the user to test/approve the live web/PWA ordering; only then consider a fresh Android release. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
 ```
