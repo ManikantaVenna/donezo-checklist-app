@@ -48,9 +48,11 @@ afterEach(() => {
 });
 
 describe("TaskRow", () => {
-  it("renders the shared streak badge, reorder handle, text toggle, and trash action", () => {
+  it("renders the shared streak badge, check circle, arrow reorder actions, and trash action", () => {
     const onToggle = vi.fn();
     const onDelete = vi.fn();
+    const onMoveUp = vi.fn();
+    const onMoveDown = vi.fn();
 
     act(() => {
       renderer = create(
@@ -60,21 +62,31 @@ describe("TaskRow", () => {
           streak={48}
           onToggle={onToggle}
           onDelete={onDelete}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          canMoveUp
+          canMoveDown
         />,
       );
     });
 
     expect(streakBadge).toHaveBeenCalledWith({ streak: 48 }, undefined);
     expect(renderer!.root.findByProps({ accessibilityLabel: "48 day streak, Diamond tier" })).toBeDefined();
-    expect(renderer!.root.findByProps({ accessibilityLabel: `Reorder ${task.title}` })).toBeDefined();
+    expect(() => renderer!.root.findByProps({ accessibilityLabel: `Reorder ${task.title}` })).toThrow();
+    expect(renderer!.root.findByProps({ accessibilityLabel: `Move ${task.title} up` })).toBeDefined();
+    expect(renderer!.root.findByProps({ accessibilityLabel: `Move ${task.title} down` })).toBeDefined();
     expect(renderer!.root.findAll((node) => String(node.type) === "Text").some((node) => node.props.children === "48d")).toBe(false);
 
     act(() => {
       renderer!.root.findByProps({ accessibilityLabel: task.title }).props.onPress();
+      renderer!.root.findByProps({ accessibilityLabel: `Move ${task.title} up` }).props.onPress();
+      renderer!.root.findByProps({ accessibilityLabel: `Move ${task.title} down` }).props.onPress();
       renderer!.root.findByProps({ accessibilityLabel: `Delete ${task.title}` }).props.onPress();
     });
 
     expect(onToggle).toHaveBeenCalledOnce();
+    expect(onMoveUp).toHaveBeenCalledOnce();
+    expect(onMoveDown).toHaveBeenCalledOnce();
     expect(onDelete).toHaveBeenCalledOnce();
   });
 });

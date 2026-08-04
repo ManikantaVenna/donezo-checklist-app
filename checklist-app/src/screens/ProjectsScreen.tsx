@@ -1,8 +1,7 @@
-import { useRef, useState, type ComponentRef, type RefObject } from "react";
+import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
 import { ProjectCard } from "../components/ProjectCard";
-import { ReorderableTaskList } from "../components/ReorderableTaskList";
 import { TaskComposer } from "../components/TaskComposer";
 import { TaskRow } from "../components/TaskRow";
 import { TaskUndoToast } from "../components/TaskUndoToast";
@@ -23,11 +22,9 @@ export function ProjectsScreen() {
     archiveTask,
     restoreTask,
     archiveProject,
-    moveTaskToIndex,
+    moveTask,
     toggleTask,
   } = useChecklist();
-  const scrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  const [scrollOffsetY, setScrollOffsetY] = useState(0);
   const { deletedTask, deleteTask, undoDelete } = useTaskDeleteUndo({ archiveTask, restoreTask });
 
   if (loading && !snapshot) {
@@ -49,10 +46,7 @@ export function ProjectsScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
-        ref={scrollViewRef}
         contentContainerStyle={styles.content}
-        onScroll={(event) => setScrollOffsetY(event.nativeEvent.contentOffset.y)}
-        scrollEventThrottle={16}
         style={styles.scroll}
       >
         <Text style={styles.eyebrow}>PLANNING</Text>
@@ -78,10 +72,8 @@ export function ProjectsScreen() {
                 archiveProject={archiveProject}
                 createTask={createTask}
                 deleteTask={deleteTask}
-                moveTaskToIndex={moveTaskToIndex}
+                moveTask={moveTask}
                 project={project}
-                scrollOffsetY={scrollOffsetY}
-                scrollViewRef={scrollViewRef}
                 tasks={tasks}
                 toggleTask={toggleTask}
               />
@@ -134,9 +126,7 @@ function ProjectSection({
   createTask,
   deleteTask,
   archiveProject,
-  moveTaskToIndex,
-  scrollOffsetY,
-  scrollViewRef,
+  moveTask,
   toggleTask,
 }: {
   project: Project;
@@ -144,9 +134,7 @@ function ProjectSection({
   createTask: (input: CreateTaskInput) => Promise<void>;
   deleteTask: (task: Task) => void;
   archiveProject: (projectId: string) => Promise<void>;
-  moveTaskToIndex: (taskId: string, targetIndex: number) => Promise<void>;
-  scrollOffsetY: number;
-  scrollViewRef: RefObject<ComponentRef<typeof ScrollView> | null>;
+  moveTask: (taskId: string, direction: "up" | "down") => Promise<void>;
   toggleTask: (task: Task) => Promise<void>;
 }) {
   const complete = tasks.filter((task) => Boolean(task.completedAt)).length;
@@ -180,25 +168,20 @@ function ProjectSection({
       {tasks.length === 0 ? (
         <Text style={styles.projectEmpty}>No tasks in this project yet.</Text>
       ) : (
-        <ReorderableTaskList
-          onMoveTask={moveTaskToIndex}
-          scrollOffsetY={scrollOffsetY}
-          scrollViewRef={scrollViewRef}
-          tasks={tasks}
-          renderTask={(task, { dragHandleProps, isDragging, onLayout }) => (
-            <TaskRow
-              key={task.id}
-              complete={Boolean(task.completedAt)}
-              dragHandleProps={dragHandleProps}
-              isDragging={isDragging}
-              meta={task.completedAt ? "Completed" : "Project task"}
-              onDelete={() => deleteTask(task)}
-              onLayout={onLayout}
-              onToggle={() => toggleTask(task)}
-              task={task}
-            />
-          )}
-        />
+        tasks.map((task, index) => (
+          <TaskRow
+            key={task.id}
+            canMoveDown={index < tasks.length - 1}
+            canMoveUp={index > 0}
+            complete={Boolean(task.completedAt)}
+            meta={task.completedAt ? "Completed" : "Project task"}
+            onDelete={() => deleteTask(task)}
+            onMoveDown={() => moveTask(task.id, "down")}
+            onMoveUp={() => moveTask(task.id, "up")}
+            onToggle={() => toggleTask(task)}
+            task={task}
+          />
+        ))
       )}
     </View>
   );

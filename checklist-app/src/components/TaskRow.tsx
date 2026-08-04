@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { GestureResponderHandlers, LayoutChangeEvent } from "react-native";
 import type { Task } from "../domain/types";
 import { colors, fontFamily, radii } from "../theme/tokens";
 import { StreakBadge } from "./StreakBadge";
@@ -9,11 +8,12 @@ type TaskRowProps = {
   complete: boolean;
   streak?: number;
   meta?: string;
-  dragHandleProps?: GestureResponderHandlers;
-  isDragging?: boolean;
-  onLayout?: (event: LayoutChangeEvent) => void;
   onToggle: () => void;
   onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 };
 
 export function TaskRow({
@@ -21,26 +21,15 @@ export function TaskRow({
   complete,
   streak,
   meta,
-  dragHandleProps,
-  isDragging = false,
-  onLayout,
   onToggle,
   onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
 }: TaskRowProps) {
   return (
-    <View onLayout={onLayout} style={[styles.row, isDragging && styles.rowDragging]}>
-      <View
-        accessible
-        accessibilityHint="Drag to move this task."
-        accessibilityLabel={`Reorder ${task.title}`}
-        accessibilityRole="button"
-        style={styles.dragHandleTouch}
-        {...dragHandleProps}
-      >
-        <View style={[styles.dragHandle, isDragging && styles.dragHandleActive]}>
-          <GripIcon active={isDragging} />
-        </View>
-      </View>
+    <View style={styles.row}>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityLabel={task.title}
@@ -48,6 +37,9 @@ export function TaskRow({
         onPress={onToggle}
         style={({ pressed }) => [styles.toggleArea, pressed && styles.pressed]}
       >
+        <View style={[styles.check, complete && styles.checkComplete]}>
+          {complete ? <Text style={styles.checkText}>✓</Text> : null}
+        </View>
         <View style={styles.copy}>
           <Text style={[styles.title, complete && styles.done]}>{task.title}</Text>
           {meta ? (
@@ -59,6 +51,13 @@ export function TaskRow({
       </Pressable>
       {typeof streak === "number" ? <StreakBadge streak={streak} /> : null}
       <View style={styles.actions}>
+        <IconButton label={`Move ${task.title} up`} text="↑" onPress={onMoveUp} disabled={!onMoveUp || !canMoveUp} />
+        <IconButton
+          label={`Move ${task.title} down`}
+          text="↓"
+          onPress={onMoveDown}
+          disabled={!onMoveDown || !canMoveDown}
+        />
         {onDelete ? (
           <Pressable
             accessibilityRole="button"
@@ -74,13 +73,28 @@ export function TaskRow({
   );
 }
 
-function GripIcon({ active }: { active: boolean }) {
+function IconButton({
+  label,
+  text,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  text: string;
+  onPress?: () => void;
+  disabled: boolean;
+}) {
   return (
-    <View style={styles.gripIcon}>
-      <View style={[styles.gripBar, active && styles.gripBarActive]} />
-      <View style={[styles.gripBar, active && styles.gripBarActive]} />
-      <View style={[styles.gripBar, active && styles.gripBarActive]} />
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.iconButton, disabled && styles.iconButtonDisabled, pressed && styles.pressed]}
+    >
+      <Text style={styles.iconText}>{text}</Text>
+    </Pressable>
   );
 }
 
@@ -104,67 +118,43 @@ const styles = StyleSheet.create({
     minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
     marginBottom: 8,
-    paddingVertical: 9,
-    paddingRight: 9,
-    paddingLeft: 8,
+    padding: 10,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.panel2,
   },
-  rowDragging: {
-    borderColor: "rgba(221,179,79,0.62)",
-    backgroundColor: colors.panel3,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  dragHandle: {
-    width: 30,
-    minHeight: 42,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: "rgba(221,179,79,0.16)",
-    backgroundColor: "rgba(221,179,79,0.055)",
-  },
-  dragHandleTouch: {
-    width: 48,
-    minHeight: 54,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dragHandleActive: {
-    borderColor: "rgba(255,226,160,0.54)",
-    backgroundColor: "rgba(221,179,79,0.18)",
-  },
-  gripIcon: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  gripBar: {
-    width: 13,
-    height: 2,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(221,179,79,0.58)",
-  },
-  gripBarActive: {
-    backgroundColor: colors.accentSoft,
-  },
   toggleArea: {
     flex: 1,
     minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
     alignSelf: "stretch",
-    justifyContent: "center",
+    gap: 10,
   },
   pressed: {
     opacity: 0.8,
+  },
+  check: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.pill,
+    borderWidth: 2,
+    borderColor: "#596273",
+  },
+  checkComplete: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
+  },
+  checkText: {
+    color: colors.black,
+    fontFamily: fontFamily.black,
+    fontSize: 13,
+    lineHeight: 15,
   },
   copy: {
     flex: 1,
@@ -189,6 +179,25 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 5,
+  },
+  iconButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.panel3,
+  },
+  iconButtonDisabled: {
+    opacity: 0.32,
+  },
+  iconText: {
+    color: colors.text,
+    fontFamily: fontFamily.black,
+    fontSize: 14,
   },
   deleteButton: {
     width: 36,

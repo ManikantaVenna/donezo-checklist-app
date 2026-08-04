@@ -1,8 +1,6 @@
-import { useRef, useState, type ComponentRef } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ProgressCard } from "../components/ProgressCard";
 import { ProjectCard } from "../components/ProjectCard";
-import { ReorderableTaskList } from "../components/ReorderableTaskList";
 import { TaskComposer } from "../components/TaskComposer";
 import { TaskRow } from "../components/TaskRow";
 import { TaskUndoToast } from "../components/TaskUndoToast";
@@ -22,11 +20,9 @@ export function TodayScreen() {
     createTask,
     archiveTask,
     restoreTask,
-    moveTaskToIndex,
+    moveTask,
     toggleTask,
   } = useChecklist();
-  const scrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  const [scrollOffsetY, setScrollOffsetY] = useState(0);
   const { deletedTask, deleteTask, undoDelete } = useTaskDeleteUndo({ archiveTask, restoreTask });
 
   if (loading && !snapshot) {
@@ -62,10 +58,7 @@ export function TodayScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
-        ref={scrollViewRef}
         contentContainerStyle={styles.content}
-        onScroll={(event) => setScrollOffsetY(event.nativeEvent.contentOffset.y)}
-        scrollEventThrottle={16}
         style={styles.scroll}
       >
         <View style={styles.brandRow}>
@@ -105,54 +98,44 @@ export function TodayScreen() {
         {dailyTasks.length === 0 ? (
           <Text style={styles.emptyCopy}>Add a routine to build your streak.</Text>
         ) : (
-          <ReorderableTaskList
-            onMoveTask={moveTaskToIndex}
-            scrollOffsetY={scrollOffsetY}
-            scrollViewRef={scrollViewRef}
-            tasks={dailyTasks}
-            renderTask={(task, { dragHandleProps, isDragging, onLayout }) => {
-              const complete = isCompletedOnDate(snapshot.dailyCompletions, task.id, todayLocalDate);
-              return (
-                <TaskRow
-                  key={task.id}
-                  complete={complete}
-                  dragHandleProps={dragHandleProps}
-                  isDragging={isDragging}
-                  meta={complete ? "Completed today" : "Keep the streak going"}
-                  onDelete={() => deleteTask(task)}
-                  onLayout={onLayout}
-                  onToggle={() => toggleTask(task)}
-                  streak={getDailyStreak(snapshot, task.id, todayLocalDate)}
-                  task={task}
-                />
-              );
-            }}
-          />
+          dailyTasks.map((task, index) => {
+            const complete = isCompletedOnDate(snapshot.dailyCompletions, task.id, todayLocalDate);
+            return (
+              <TaskRow
+                key={task.id}
+                canMoveDown={index < dailyTasks.length - 1}
+                canMoveUp={index > 0}
+                complete={complete}
+                meta={complete ? "Completed today" : "Keep the streak going"}
+                onDelete={() => deleteTask(task)}
+                onMoveDown={() => moveTask(task.id, "down")}
+                onMoveUp={() => moveTask(task.id, "up")}
+                onToggle={() => toggleTask(task)}
+                streak={getDailyStreak(snapshot, task.id, todayLocalDate)}
+                task={task}
+              />
+            );
+          })
         )}
 
         <SectionTitle title="Quick tasks" detail={`${quickTasks.filter((task) => !task.completedAt).length} open`} />
         {quickTasks.length === 0 ? (
           <Text style={styles.emptyCopy}>No quick tasks for today.</Text>
         ) : (
-          <ReorderableTaskList
-            onMoveTask={moveTaskToIndex}
-            scrollOffsetY={scrollOffsetY}
-            scrollViewRef={scrollViewRef}
-            tasks={quickTasks}
-            renderTask={(task, { dragHandleProps, isDragging, onLayout }) => (
-              <TaskRow
-                key={task.id}
-                complete={Boolean(task.completedAt)}
-                dragHandleProps={dragHandleProps}
-                isDragging={isDragging}
-                meta={task.completedAt ? "Completed" : "One-time task"}
-                onDelete={() => deleteTask(task)}
-                onLayout={onLayout}
-                onToggle={() => toggleTask(task)}
-                task={task}
-              />
-            )}
-          />
+          quickTasks.map((task, index) => (
+            <TaskRow
+              key={task.id}
+              canMoveDown={index < quickTasks.length - 1}
+              canMoveUp={index > 0}
+              complete={Boolean(task.completedAt)}
+              meta={task.completedAt ? "Completed" : "One-time task"}
+              onDelete={() => deleteTask(task)}
+              onMoveDown={() => moveTask(task.id, "down")}
+              onMoveUp={() => moveTask(task.id, "up")}
+              onToggle={() => toggleTask(task)}
+              task={task}
+            />
+          ))
         )}
 
         <SectionTitle title="Projects" detail={`${snapshot.projects.length} active`} />
