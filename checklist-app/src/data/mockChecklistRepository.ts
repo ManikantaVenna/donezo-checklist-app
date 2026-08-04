@@ -29,7 +29,13 @@ function createDefaultReminderPreferences(userId: string): ReminderPreferences {
   };
 }
 
-function getNextSortOrder(items: Array<{ sortOrder: number }>): number {
+function getTopSortOrder(items: Array<{ sortOrder: number }>): number {
+  if (items.length === 0) return 1;
+
+  return items.reduce((lowest, item) => Math.min(lowest, item.sortOrder), items[0]!.sortOrder) - 1;
+}
+
+function getBottomSortOrder(items: Array<{ sortOrder: number }>): number {
   return items.reduce((highest, item) => Math.max(highest, item.sortOrder), 0) + 1;
 }
 
@@ -167,7 +173,7 @@ export class MockChecklistRepository implements ChecklistRepository {
       projectId,
       type: input.type,
       title: input.title.trim(),
-      sortOrder: input.sortOrder ?? getNextSortOrder(sortSiblings),
+      sortOrder: input.sortOrder ?? getTopSortOrder(sortSiblings),
       isArchived: false,
       completedAt: null,
       createdAt: now,
@@ -185,6 +191,16 @@ export class MockChecklistRepository implements ChecklistRepository {
     }
 
     task.title = title.trim();
+    task.updatedAt = new Date().toISOString();
+  }
+
+  async restoreTask(userId: string, taskId: string): Promise<void> {
+    const task = this.tasks.find((candidate) => candidate.userId === userId && candidate.id === taskId);
+    if (!task) {
+      return;
+    }
+
+    task.isArchived = false;
     task.updatedAt = new Date().toISOString();
   }
 
@@ -264,7 +280,7 @@ export class MockChecklistRepository implements ChecklistRepository {
       id: `project-${this.nextProjectId}`,
       userId,
       name: input.name.trim(),
-      sortOrder: getNextSortOrder(userProjects),
+      sortOrder: getBottomSortOrder(userProjects),
       isArchived: false,
       createdAt: now,
       updatedAt: now,

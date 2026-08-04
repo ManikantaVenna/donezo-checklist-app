@@ -28,7 +28,7 @@ const snapshot: ChecklistSnapshot = {
 };
 
 describe("createOptimisticTask", () => {
-  it("places a quick task after its quick-task siblings", () => {
+  it("places a quick task before its quick-task siblings", () => {
     const task = createOptimisticTask(
       snapshot,
       "user-1",
@@ -42,7 +42,7 @@ describe("createOptimisticTask", () => {
       title: "New quick task",
       type: "quick",
       projectId: null,
-      sortOrder: 5,
+      sortOrder: 3,
     });
   });
 
@@ -55,7 +55,7 @@ describe("createOptimisticTask", () => {
       "2026-07-18T13:00:00.000Z",
     );
 
-    expect(task.sortOrder).toBe(4);
+    expect(task.sortOrder).toBe(2);
     expect(task.projectId).toBe("project-a");
   });
 
@@ -66,10 +66,10 @@ describe("createOptimisticTask", () => {
       { title: "Racing add", type: "quick" },
       "pending-3",
       "2026-07-18T13:00:00.000Z",
-      6,
+      2,
     );
 
-    expect(task.sortOrder).toBe(6);
+    expect(task.sortOrder).toBe(2);
   });
 });
 

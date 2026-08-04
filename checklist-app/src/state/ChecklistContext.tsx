@@ -4,7 +4,7 @@ import type { ChecklistSnapshot, Task, WebPushSubscriptionInput } from "../domai
 import { calculateCurrentStreak, getNextLocalMidnight, isCompletedOnDate, localDateKey } from "../domain/dates";
 import { DEFAULT_TIMEZONE } from "../domain/timezones";
 import type { ChecklistRepository, CreateProjectInput, CreateTaskInput, MoveDirection } from "../data/checklistRepository";
-import { planMoveTask } from "../domain/ordering";
+import { planMoveTask, planReorderTask } from "../domain/ordering";
 import { scheduleDailyReminder } from "../lib/reminders";
 import { createOptimisticTask, createPendingTaskId, isPendingTaskId, nextTaskSortOrder } from "./optimisticTask";
 
@@ -16,7 +16,9 @@ type ChecklistContextValue = {
   refresh: () => Promise<void>;
   createTask: (input: CreateTaskInput) => Promise<void>;
   archiveTask: (taskId: string) => Promise<void>;
+  restoreTask: (task: Task) => Promise<void>;
   moveTask: (taskId: string, direction: MoveDirection) => Promise<void>;
+  moveTaskToIndex: (taskId: string, targetIndex: number) => Promise<void>;
   toggleTask: (task: Task) => Promise<void>;
   createProject: (input: CreateProjectInput) => Promise<void>;
   archiveProject: (projectId: string) => Promise<void>;
@@ -40,8 +42,9 @@ export function ChecklistProvider({
     localDateKey(new Date(), DEFAULT_TIMEZONE),
   );
   const toggleRuns = useRef(new Map<string, { desired: boolean; localDate: string }>());
+  const archiveRuns = useRef(new Map<string, Promise<void>>());
   const pendingCreateSequence = useRef(0);
-  const pendingInserts = useRef(new Map<string, { count: number; highestSortOrder: number }>());
+  const pendingInserts = useRef(new Map<string, { count: number; lowestSortOrder: number }>());
   const hasLoadedSnapshot = useRef(false);
   const refreshPromise = useRef<Promise<void> | null>(null);
   const refreshQueued = useRef(false);
@@ -133,13 +136,11 @@ export function ChecklistProvider({
       // adds never collide even when this callback closed over a stale snapshot.
       const groupKey = input.type === "project" ? `project:${input.projectId ?? ""}` : `list:${input.type}`;
       const insertGroup = pendingInserts.current.get(groupKey);
-      const sortOrder = Math.max(
-        nextTaskSortOrder(snapshot, input),
-        insertGroup ? insertGroup.highestSortOrder + 1 : 0,
-      );
+      const candidateSortOrder = nextTaskSortOrder(snapshot, input);
+      const sortOrder = insertGroup ? Math.min(candidateSortOrder, insertGroup.lowestSortOrder - 1) : candidateSortOrder;
       pendingInserts.current.set(groupKey, {
         count: (insertGroup?.count ?? 0) + 1,
-        highestSortOrder: sortOrder,
+        lowestSortOrder: sortOrder,
       });
       const optimisticTask = createOptimisticTask(
         snapshot,
@@ -151,7 +152,7 @@ export function ChecklistProvider({
       );
       setError(null);
       setSnapshot((previous) =>
-        previous ? { ...previous, tasks: [...previous.tasks, optimisticTask] } : previous,
+        previous ? { ...previous, tasks: [optimisticTask, ...previous.tasks] } : previous,
       );
 
       beginMutation();
@@ -207,16 +208,61 @@ export function ChecklistProvider({
       );
 
       beginMutation();
+      const archiveRun = repository.archiveTask(userId, taskId);
+      archiveRuns.current.set(taskId, archiveRun);
       try {
-        await repository.archiveTask(userId, taskId);
+        await archiveRun;
         endMutation();
       } catch (err) {
         setSnapshot((previous) =>
-          previous ? { ...previous, tasks: [...previous.tasks, archivedTask] } : previous,
+          previous
+            ? {
+                ...previous,
+                tasks: previous.tasks.some((task) => task.id === archivedTask.id)
+                  ? previous.tasks
+                  : [...previous.tasks, archivedTask],
+              }
+            : previous,
         );
         refreshQueuedAfterMutations.current = true;
         endMutation();
         setError(err instanceof Error ? err.message : "Unable to delete task.");
+      } finally {
+        archiveRuns.current.delete(taskId);
+      }
+    },
+    [beginMutation, endMutation, repository, snapshot, userId],
+  );
+
+  const restoreTask = useCallback(
+    async (task: Task) => {
+      if (isPendingTaskId(task.id) || !snapshot) return;
+
+      setError(null);
+      setSnapshot((previous) =>
+        previous
+          ? {
+              ...previous,
+              tasks: previous.tasks.some((entry) => entry.id === task.id) ? previous.tasks : [task, ...previous.tasks],
+            }
+          : previous,
+      );
+
+      beginMutation();
+      try {
+        const archiveRun = archiveRuns.current.get(task.id);
+        if (archiveRun) {
+          await archiveRun.catch(() => undefined);
+        }
+        await repository.restoreTask(userId, task.id);
+        endMutation();
+      } catch (err) {
+        setSnapshot((previous) =>
+          previous ? { ...previous, tasks: previous.tasks.filter((entry) => entry.id !== task.id) } : previous,
+        );
+        refreshQueuedAfterMutations.current = true;
+        endMutation();
+        setError(err instanceof Error ? err.message : "Unable to undo delete.");
       }
     },
     [beginMutation, endMutation, repository, snapshot, userId],
@@ -227,6 +273,47 @@ export function ChecklistProvider({
       if (isPendingTaskId(taskId) || !snapshot) return;
 
       const changes = planMoveTask(snapshot.tasks, taskId, direction);
+      if (!changes) return;
+
+      const nextOrders = new Map(changes.map((change) => [change.taskId, change.sortOrder]));
+      const previousOrders = new Map(
+        snapshot.tasks.filter((task) => nextOrders.has(task.id)).map((task) => [task.id, task.sortOrder]),
+      );
+      const applyOrders = (orders: Map<string, number>) => {
+        setSnapshot((previous) =>
+          previous
+            ? {
+                ...previous,
+                tasks: previous.tasks.map((task) => {
+                  const sortOrder = orders.get(task.id);
+                  return sortOrder === undefined ? task : { ...task, sortOrder };
+                }),
+              }
+            : previous,
+        );
+      };
+
+      applyOrders(nextOrders);
+
+      beginMutation();
+      try {
+        await repository.updateTaskOrders(userId, changes);
+        endMutation();
+      } catch (err) {
+        applyOrders(previousOrders);
+        refreshQueuedAfterMutations.current = true;
+        endMutation();
+        setError(err instanceof Error ? err.message : "Unable to reorder task.");
+      }
+    },
+    [beginMutation, endMutation, repository, snapshot, userId],
+  );
+
+  const moveTaskToIndex = useCallback(
+    async (taskId: string, targetIndex: number) => {
+      if (isPendingTaskId(taskId) || !snapshot) return;
+
+      const changes = planReorderTask(snapshot.tasks, taskId, targetIndex);
       if (!changes) return;
 
       const nextOrders = new Map(changes.map((change) => [change.taskId, change.sortOrder]));
@@ -545,7 +632,9 @@ export function ChecklistProvider({
       refresh,
       createTask,
       archiveTask,
+      restoreTask,
       moveTask,
+      moveTaskToIndex,
       toggleTask,
       createProject,
       archiveProject,
@@ -562,7 +651,9 @@ export function ChecklistProvider({
       error,
       loading,
       moveTask,
+      moveTaskToIndex,
       refresh,
+      restoreTask,
       snapshot,
       todayLocalDate,
       toggleTask,

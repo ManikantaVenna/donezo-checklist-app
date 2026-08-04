@@ -1,18 +1,34 @@
-import { useState } from "react";
+import { useRef, useState, type ComponentRef, type RefObject } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "../components/AppButton";
 import { ProjectCard } from "../components/ProjectCard";
+import { ReorderableTaskList } from "../components/ReorderableTaskList";
 import { TaskComposer } from "../components/TaskComposer";
 import { TaskRow } from "../components/TaskRow";
+import { TaskUndoToast } from "../components/TaskUndoToast";
 import type { CreateProjectInput, CreateTaskInput } from "../data/checklistRepository";
 import { sortedCopy } from "../domain/sorting";
 import type { Project, Task } from "../domain/types";
+import { useTaskDeleteUndo } from "../hooks/useTaskDeleteUndo";
 import { useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
 export function ProjectsScreen() {
-  const { snapshot, loading, error, createProject, createTask, archiveTask, archiveProject, moveTask, toggleTask } =
-    useChecklist();
+  const {
+    snapshot,
+    loading,
+    error,
+    createProject,
+    createTask,
+    archiveTask,
+    restoreTask,
+    archiveProject,
+    moveTaskToIndex,
+    toggleTask,
+  } = useChecklist();
+  const scrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const [scrollOffsetY, setScrollOffsetY] = useState(0);
+  const { deletedTask, deleteTask, undoDelete } = useTaskDeleteUndo({ archiveTask, restoreTask });
 
   if (loading && !snapshot) {
     return (
@@ -31,39 +47,50 @@ export function ProjectsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
-      <Text style={styles.eyebrow}>PLANNING</Text>
-      <Text style={styles.title}>Projects</Text>
-      <Text style={styles.subcopy}>Move meaningful work forward, one task at a time.</Text>
+    <View style={styles.screen}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.content}
+        onScroll={(event) => setScrollOffsetY(event.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+        style={styles.scroll}
+      >
+        <Text style={styles.eyebrow}>PLANNING</Text>
+        <Text style={styles.title}>Projects</Text>
+        <Text style={styles.subcopy}>Move meaningful work forward, one task at a time.</Text>
 
-      <ProjectComposer onSubmit={createProject} />
+        <ProjectComposer onSubmit={createProject} />
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <View style={styles.headingRow}>
-        <Text style={styles.sectionTitle}>Active projects</Text>
-        <Text style={styles.count}>{snapshot.projects.length}</Text>
-      </View>
-      {snapshot.projects.length === 0 ? (
-        <Text style={styles.emptyCopy}>No projects yet. Create one when a task needs a home.</Text>
-      ) : (
-        snapshot.projects.map((project) => {
-          const tasks = sortTasks(snapshot.tasks.filter((task) => task.projectId === project.id));
-          return (
-            <ProjectSection
-              key={project.id}
-              archiveTask={archiveTask}
-              archiveProject={archiveProject}
-              createTask={createTask}
-              moveTask={moveTask}
-              project={project}
-              tasks={tasks}
-              toggleTask={toggleTask}
-            />
-          );
-        })
-      )}
-    </ScrollView>
+        <View style={styles.headingRow}>
+          <Text style={styles.sectionTitle}>Active projects</Text>
+          <Text style={styles.count}>{snapshot.projects.length}</Text>
+        </View>
+        {snapshot.projects.length === 0 ? (
+          <Text style={styles.emptyCopy}>No projects yet. Create one when a task needs a home.</Text>
+        ) : (
+          snapshot.projects.map((project) => {
+            const tasks = sortTasks(snapshot.tasks.filter((task) => task.projectId === project.id));
+            return (
+              <ProjectSection
+                key={project.id}
+                archiveProject={archiveProject}
+                createTask={createTask}
+                deleteTask={deleteTask}
+                moveTaskToIndex={moveTaskToIndex}
+                project={project}
+                scrollOffsetY={scrollOffsetY}
+                scrollViewRef={scrollViewRef}
+                tasks={tasks}
+                toggleTask={toggleTask}
+              />
+            );
+          })
+        )}
+      </ScrollView>
+      {deletedTask ? <TaskUndoToast onUndo={undoDelete} taskTitle={deletedTask.title} /> : null}
+    </View>
   );
 }
 
@@ -105,17 +132,21 @@ function ProjectSection({
   project,
   tasks,
   createTask,
-  archiveTask,
+  deleteTask,
   archiveProject,
-  moveTask,
+  moveTaskToIndex,
+  scrollOffsetY,
+  scrollViewRef,
   toggleTask,
 }: {
   project: Project;
   tasks: Task[];
   createTask: (input: CreateTaskInput) => Promise<void>;
-  archiveTask: (taskId: string) => Promise<void>;
+  deleteTask: (task: Task) => void;
   archiveProject: (projectId: string) => Promise<void>;
-  moveTask: (taskId: string, direction: "up" | "down") => Promise<void>;
+  moveTaskToIndex: (taskId: string, targetIndex: number) => Promise<void>;
+  scrollOffsetY: number;
+  scrollViewRef: RefObject<ComponentRef<typeof ScrollView> | null>;
   toggleTask: (task: Task) => Promise<void>;
 }) {
   const complete = tasks.filter((task) => Boolean(task.completedAt)).length;
@@ -149,20 +180,25 @@ function ProjectSection({
       {tasks.length === 0 ? (
         <Text style={styles.projectEmpty}>No tasks in this project yet.</Text>
       ) : (
-        tasks.map((task, index) => (
-          <TaskRow
-            key={task.id}
-            canMoveDown={index < tasks.length - 1}
-            canMoveUp={index > 0}
-            complete={Boolean(task.completedAt)}
-            meta={task.completedAt ? "Completed" : "Project task"}
-            onDelete={() => archiveTask(task.id)}
-            onMoveDown={() => moveTask(task.id, "down")}
-            onMoveUp={() => moveTask(task.id, "up")}
-            onToggle={() => toggleTask(task)}
-            task={task}
-          />
-        ))
+        <ReorderableTaskList
+          onMoveTask={moveTaskToIndex}
+          scrollOffsetY={scrollOffsetY}
+          scrollViewRef={scrollViewRef}
+          tasks={tasks}
+          renderTask={(task, { dragHandleProps, isDragging, onLayout }) => (
+            <TaskRow
+              key={task.id}
+              complete={Boolean(task.completedAt)}
+              dragHandleProps={dragHandleProps}
+              isDragging={isDragging}
+              meta={task.completedAt ? "Completed" : "Project task"}
+              onDelete={() => deleteTask(task)}
+              onLayout={onLayout}
+              onToggle={() => toggleTask(task)}
+              task={task}
+            />
+          )}
+        />
       )}
     </View>
   );
@@ -174,7 +210,8 @@ function sortTasks(tasks: Task[]): Task[] {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 20, paddingBottom: 36 },
+  scroll: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 20, paddingBottom: 86 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   eyebrow: { color: colors.accent, fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 1.4 },
   title: { marginTop: 8, color: colors.text, fontFamily: fontFamily.black, fontSize: 32, lineHeight: 38 },

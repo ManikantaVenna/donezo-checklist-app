@@ -201,7 +201,7 @@ export const supabaseChecklistRepository: ChecklistRepository = {
         .select("sort_order")
         .eq("user_id", userId)
         .eq("is_archived", false)
-        .order("sort_order", { ascending: false })
+        .order("sort_order", { ascending: true })
         .limit(1);
 
       if (input.type === "project") {
@@ -212,7 +212,8 @@ export const supabaseChecklistRepository: ChecklistRepository = {
 
       const orderResult = await orderQuery;
       throwIfError(orderResult);
-      sortOrder = ((orderResult.data?.[0] as Pick<TaskRow, "sort_order"> | undefined)?.sort_order ?? 0) + 1;
+      const lowestSortOrder = (orderResult.data?.[0] as Pick<TaskRow, "sort_order"> | undefined)?.sort_order;
+      sortOrder = lowestSortOrder === undefined ? 1 : lowestSortOrder - 1;
     }
 
     const result = await db
@@ -241,6 +242,16 @@ export const supabaseChecklistRepository: ChecklistRepository = {
     const { error } = await client()
       .from("tasks")
       .update({ is_archived: true })
+      .eq("user_id", userId)
+      .eq("id", taskId);
+
+    throwIfError({ error });
+  },
+
+  async restoreTask(userId, taskId) {
+    const { error } = await client()
+      .from("tasks")
+      .update({ is_archived: false })
       .eq("user_id", userId)
       .eq("id", taskId);
 

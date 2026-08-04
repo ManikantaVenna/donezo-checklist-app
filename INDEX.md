@@ -13,12 +13,13 @@
 - `checklist-app/` - Expo/React Native app.
 - `checklist-app/App.tsx` - app shell and navigation.
 - `checklist-app/src/screens/` - auth, today, daily, projects, settings screens.
-- `checklist-app/src/components/` - shared UI components including task rows, buttons, streak badges, update notice.
-- `checklist-app/src/state/ChecklistContext.tsx` - checklist state, optimistic updates, refresh/realtime reconciliation.
+- `checklist-app/src/components/` - shared UI components including task rows, drag reorder list, undo toast, buttons, streak badges, update notice.
+- `checklist-app/src/hooks/useTaskDeleteUndo.ts` - task delete snackbar/undo timing shared by Today and Projects.
+- `checklist-app/src/state/ChecklistContext.tsx` - checklist state, optimistic updates, delete undo restore, drag reorder persistence, refresh/realtime reconciliation.
 - `checklist-app/src/state/AppUpdateContext.tsx` - Android update prompt state.
 - `checklist-app/src/data/supabaseChecklistRepository.ts` - Supabase checklist persistence.
 - `checklist-app/src/data/mockChecklistRepository.ts` - demo/mock persistence.
-- `checklist-app/src/domain/` - dates, reminders, ordering, sorting, streak tiers, release parsing, timezones.
+- `checklist-app/src/domain/` - dates, reminders, target-position task ordering, sorting, streak tiers, release parsing, timezones.
 - `checklist-app/src/lib/` - Supabase client, reminders integration, app release checks, version helpers.
 - `checklist-app/src/lib/webPush.ts` - browser PWA/Web Push support helpers and versioned service-worker registration.
 - `checklist-app/assets/` - icons, logo, splash, fonts, streak badge images.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Task } from "./types";
-import { planMoveTask, type TaskOrderChange } from "./ordering";
+import { planMoveTask, planReorderTask, type TaskOrderChange } from "./ordering";
 
 function task(overrides: Partial<Task> & Pick<Task, "id" | "sortOrder">): Task {
   return {
@@ -22,6 +22,13 @@ function sequenceAfter(tasks: Task[], changes: TaskOrderChange[] | null): string
     .map((entry) => ({ ...entry, sortOrder: orders.get(entry.id) ?? entry.sortOrder }))
     .sort((first, second) => first.sortOrder - second.sortOrder || first.createdAt.localeCompare(second.createdAt))
     .map((entry) => entry.id);
+}
+
+function quickSequenceAfter(changes: TaskOrderChange[] | null): string[] {
+  return sequenceAfter(
+    tasks.filter((entry) => entry.projectId === null && entry.type === "quick"),
+    changes,
+  );
 }
 
 const tasks: Task[] = [
@@ -112,5 +119,24 @@ describe("planMoveTask", () => {
 
     expect(sequenceAfter(mixed, planMoveTask(mixed, "tied-old", "up"))).toEqual(["tied-old", "low", "tied-new"]);
     expect(sequenceAfter(mixed, planMoveTask(mixed, "low", "down"))).toEqual(["tied-old", "low", "tied-new"]);
+  });
+});
+
+describe("planReorderTask", () => {
+  it("moves a task directly to the top of its own list", () => {
+    expect(quickSequenceAfter(planReorderTask(tasks, "c", 0))).toEqual(["c", "a", "b"]);
+  });
+
+  it("moves a task directly to the bottom of its own list", () => {
+    expect(quickSequenceAfter(planReorderTask(tasks, "a", 2))).toEqual(["b", "c", "a"]);
+  });
+
+  it("clamps out-of-range targets", () => {
+    expect(quickSequenceAfter(planReorderTask(tasks, "c", -4))).toEqual(["c", "a", "b"]);
+    expect(quickSequenceAfter(planReorderTask(tasks, "a", 99))).toEqual(["b", "c", "a"]);
+  });
+
+  it("returns null when the task is already at the target", () => {
+    expect(planReorderTask(tasks, "a", 0)).toBeNull();
   });
 });

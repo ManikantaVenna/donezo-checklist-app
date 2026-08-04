@@ -22,6 +22,7 @@ export type ChecklistRepository = {
   createTask(userId: string, input: CreateTaskInput): Promise<Task>;
   renameTask(userId: string, taskId: string, title: string): Promise<void>;
   archiveTask(userId: string, taskId: string): Promise<void>;
+  restoreTask(userId: string, taskId: string): Promise<void>;
   updateTaskOrders(userId: string, changes: TaskOrderChange[]): Promise<void>;
   setTaskComplete(userId: string, taskId: string, localDate: string, complete: boolean, taskType: TaskType): Promise<void>;
   createProject(userId: string, input: CreateProjectInput): Promise<void>;

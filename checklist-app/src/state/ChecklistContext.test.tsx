@@ -59,6 +59,7 @@ function repositoryWith(overrides: Partial<ChecklistRepository> = {}): Checklist
     createTask: vi.fn(async () => quickTask),
     renameTask: vi.fn(async () => undefined),
     archiveTask: vi.fn(async () => undefined),
+    restoreTask: vi.fn(async () => undefined),
     updateTaskOrders: vi.fn(async () => undefined),
     setTaskComplete: vi.fn(async () => undefined),
     createProject: vi.fn(async () => undefined),
@@ -171,6 +172,7 @@ describe("ChecklistProvider task creation", () => {
       await checklist.value.toggleTask(pendingTask);
       await checklist.value.archiveTask(pendingTask.id);
       await checklist.value.moveTask(pendingTask.id, "up");
+      await checklist.value.moveTaskToIndex(pendingTask.id, 0);
     });
 
     expect(repository.setTaskComplete).not.toHaveBeenCalled();
@@ -623,9 +625,10 @@ describe("ChecklistProvider toggle serialization", () => {
     });
 
     const sortOrders = checklist.value.snapshot!.tasks.map((task) => task.sortOrder);
-    expect(sortOrders).toEqual([1, 2]);
+    expect(sortOrders).toEqual([0, 1]);
+    expect(checklist.value.snapshot!.tasks.map((task) => task.title)).toEqual(["Second", "First"]);
     expect(createTask.mock.calls[0]?.[1]?.sortOrder).toBe(1);
-    expect(createTask.mock.calls[1]?.[1]?.sortOrder).toBe(2);
+    expect(createTask.mock.calls[1]?.[1]?.sortOrder).toBe(0);
 
     firstInsert.resolve({ ...checklist.value.snapshot!.tasks[0], id: "saved-1" });
     secondInsert.resolve({ ...checklist.value.snapshot!.tasks[1], id: "saved-2" });
@@ -698,6 +701,57 @@ describe("ChecklistProvider optimistic archive and reorder", () => {
     expect(getSnapshot).toHaveBeenCalledTimes(1);
   });
 
+  it("restores a deleted task when undo is tapped after the archive succeeds", async () => {
+    const getSnapshot = vi.fn<ChecklistRepository["getSnapshot"]>().mockResolvedValue(taskSnapshot);
+    const repository = repositoryWith({ getSnapshot });
+    const checklist = await renderChecklist(repository);
+
+    await act(async () => {
+      await checklist.value.archiveTask("task-1");
+    });
+    expect(findTask(checklist, "task-1")).toBeUndefined();
+
+    await act(async () => {
+      await checklist.value.restoreTask(quickTask);
+    });
+
+    expect(findTask(checklist, "task-1")).toMatchObject({ title: "Send invoice" });
+    expect(repository.restoreTask).toHaveBeenCalledWith("user-1", "task-1");
+    expect(getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for an in-flight archive before restoring a task", async () => {
+    const archive = deferred<void>();
+    const restoreTask = vi.fn(async () => undefined);
+    const getSnapshot = vi.fn<ChecklistRepository["getSnapshot"]>().mockResolvedValue(taskSnapshot);
+    const repository = repositoryWith({
+      getSnapshot,
+      archiveTask: vi.fn(() => archive.promise),
+      restoreTask,
+    });
+    const checklist = await renderChecklist(repository);
+
+    let removal!: Promise<void>;
+    act(() => {
+      removal = checklist.value.archiveTask("task-1");
+    });
+    expect(findTask(checklist, "task-1")).toBeUndefined();
+
+    let restore!: Promise<void>;
+    act(() => {
+      restore = checklist.value.restoreTask(quickTask);
+    });
+    expect(findTask(checklist, "task-1")).toBeDefined();
+    expect(restoreTask).not.toHaveBeenCalled();
+
+    archive.resolve();
+    await act(async () => {
+      await Promise.all([removal, restore]);
+    });
+
+    expect(restoreTask).toHaveBeenCalledWith("user-1", "task-1");
+  });
+
   it("reorders instantly and writes only the two affected rows", async () => {
     const secondTask: Task = {
       ...quickTask,
@@ -721,6 +775,42 @@ describe("ChecklistProvider optimistic archive and reorder", () => {
     expect(repository.updateTaskOrders).toHaveBeenCalledWith("user-1", [
       { taskId: "task-2", sortOrder: 1, previousSortOrder: 2 },
       { taskId: "task-1", sortOrder: 2, previousSortOrder: 1 },
+    ]);
+    expect(getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves a task directly to a target position for drag reorder", async () => {
+    const secondTask: Task = {
+      ...quickTask,
+      id: "task-2",
+      title: "Second task",
+      sortOrder: 2,
+      createdAt: "2026-07-17T13:00:00.000Z",
+    };
+    const thirdTask: Task = {
+      ...quickTask,
+      id: "task-3",
+      title: "Third task",
+      sortOrder: 3,
+      createdAt: "2026-07-17T14:00:00.000Z",
+    };
+    const getSnapshot = vi
+      .fn<ChecklistRepository["getSnapshot"]>()
+      .mockResolvedValue({ ...taskSnapshot, tasks: [quickTask, secondTask, thirdTask] });
+    const repository = repositoryWith({ getSnapshot });
+    const checklist = await renderChecklist(repository);
+
+    await act(async () => {
+      await checklist.value.moveTaskToIndex("task-3", 0);
+    });
+
+    expect(findTask(checklist, "task-3")?.sortOrder).toBe(1);
+    expect(findTask(checklist, "task-1")?.sortOrder).toBe(2);
+    expect(findTask(checklist, "task-2")?.sortOrder).toBe(3);
+    expect(repository.updateTaskOrders).toHaveBeenCalledWith("user-1", [
+      { taskId: "task-3", sortOrder: 1, previousSortOrder: 3 },
+      { taskId: "task-1", sortOrder: 2, previousSortOrder: 1 },
+      { taskId: "task-2", sortOrder: 3, previousSortOrder: 2 },
     ]);
     expect(getSnapshot).toHaveBeenCalledTimes(1);
   });

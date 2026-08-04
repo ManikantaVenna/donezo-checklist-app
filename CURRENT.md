@@ -4,7 +4,7 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current commit before task-ordering planning:** `19ec886`
+- **Current checkpoint:** task-ordering implementation is complete in source; commit and push this checkpoint before starting the next task.
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
@@ -38,6 +38,8 @@
 - Fixed a closed-app PWA reminder outage where an invisible BOM/whitespace character in Worker env values made Supabase reject the Worker API key before any delivery attempt could be recorded.
 - Hardened the PWA service worker notification display by giving each reminder a unique notification tag, enabling `renotify` where supported, and registering the service worker through a versioned URL to bypass sticky custom-domain cache.
 - User reported the iPhone/Home Screen reminder fix appears to be working and asked to save that state.
+- Implemented the approved task-ordering UI in source: new tasks now insert at the top of their own list, task rows use a left drag handle instead of up/down arrows, Delete is now a compact trash icon, tapping task text still toggles completion, daily streak badges remain, and deleting a task shows a bottom Undo bar.
+- Added direct target-position reorder planning so a dragged task can be saved in one reorder write, plus undo restore/unarchive support for accidental task deletes.
 
 ## Latest public release details
 
@@ -88,6 +90,12 @@ Current PWA reminder work was verified with:
 - Cloudflare Pages production deployment `f81ddcb7-0c0e-46e6-9fc9-7c8ce9d7aec9` is live on branch `codex/public-launch`; live `https://donezo.mv-builds.com/` now points to `index-ac234f6c2f7531372fd83fdb76123026.js`, and that bundle registers `/donezo-service-worker.js?v=20260804-reminders`.
 - Live `https://donezo.mv-builds.com/donezo-service-worker.js` and the versioned service-worker URL both serve the hardened handler with unique reminder tags and `renotify: true`.
 
+Current task-ordering work was verified with:
+
+- `npm run typecheck` in `checklist-app`
+- `npm test` in `checklist-app` -> 21 files / 179 tests passed
+- `npm run build:web` in `checklist-app`
+
 For any new change, rerun the smallest relevant checks before claiming completion.
 
 ## Current state
@@ -101,6 +109,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - PWA Web Push server delivery now has a 5-minute after-time retry window and private delivery records, so a slightly delayed cron run should still send once if daily routines remain unfinished.
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
 - User has confirmed the reminder behavior appears to be working in real use.
+- Task-ordering improvements are implemented in source and verified locally, but are not live on `donezo.mv-builds.com` or in an Android APK until the web app is deployed and/or a new Android release is built and published.
 - Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
 
@@ -118,10 +127,10 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
-Confirm the task-ordering approach with the user, then implement it narrowly: new tasks should appear at the top of their list, and existing tasks should get an easier way to jump/rearrange without tapping one-step arrows repeatedly.
+Ask the user to test/approve the task-ordering implementation. If approved for public release, deploy the web app and prepare a new Android release following `AGENTS.md` release order.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed for iPhone/Home Screen web users, the Worker fix is live as deploy version `d5592f89-dba1-4439-a4ac-128880146c3e`, Supabase recorded Apple `sent`, and the user says the reminder fix appears to be working. Android 1.0.7 build 10 remains the latest APK, and Android native reminder source changes still need a future APK plus latest.json release before Android users get them. Next task: confirm and implement the task-ordering improvement: new tasks should appear at the top, and existing tasks should be easier to move/jump/rearrange without repeated one-step arrow taps. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and task-ordering improvements are implemented in source: new tasks insert at the top, rows use a left drag handle instead of arrows, Delete is a trash icon, and task delete has a bottom Undo bar. Android 1.0.7 build 10 remains the latest APK; these task-ordering changes are not live on the public web app or Android until deployed/released. Next task: let the user test/approve the task-ordering implementation, then deploy web and/or prepare Android release only if requested/approved. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
 ```

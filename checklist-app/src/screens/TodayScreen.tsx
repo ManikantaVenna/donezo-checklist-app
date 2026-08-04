@@ -1,16 +1,33 @@
+import { useRef, useState, type ComponentRef } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ProgressCard } from "../components/ProgressCard";
 import { ProjectCard } from "../components/ProjectCard";
+import { ReorderableTaskList } from "../components/ReorderableTaskList";
 import { TaskComposer } from "../components/TaskComposer";
 import { TaskRow } from "../components/TaskRow";
+import { TaskUndoToast } from "../components/TaskUndoToast";
 import { isCompletedOnDate } from "../domain/dates";
 import { sortedCopy } from "../domain/sorting";
 import type { Task } from "../domain/types";
+import { useTaskDeleteUndo } from "../hooks/useTaskDeleteUndo";
 import { getDailyStreak, useChecklist } from "../state/ChecklistContext";
 import { colors, fontFamily, radii } from "../theme/tokens";
 
 export function TodayScreen() {
-  const { snapshot, todayLocalDate, loading, error, createTask, archiveTask, moveTask, toggleTask } = useChecklist();
+  const {
+    snapshot,
+    todayLocalDate,
+    loading,
+    error,
+    createTask,
+    archiveTask,
+    restoreTask,
+    moveTaskToIndex,
+    toggleTask,
+  } = useChecklist();
+  const scrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const [scrollOffsetY, setScrollOffsetY] = useState(0);
+  const { deletedTask, deleteTask, undoDelete } = useTaskDeleteUndo({ archiveTask, restoreTask });
 
   if (loading && !snapshot) {
     return (
@@ -43,103 +60,122 @@ export function TodayScreen() {
   const completionPercent = totalToday === 0 ? 0 : Math.round((completedToday / totalToday) * 100);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
-      <View style={styles.brandRow}>
-        <Image
-          accessibilityIgnoresInvertColors
-          accessibilityLabel="Donezo logo"
-          source={require("../../assets/donezo-logo.png")}
-          style={styles.brandIcon}
-        />
-        <View>
-          <Text style={styles.brandName}>Donezo</Text>
-          <Text style={styles.brandDetail}>Personal command center</Text>
-        </View>
-      </View>
-      <Text style={styles.eyebrow}>TODAY</Text>
-      <Text style={styles.title}>Make the day count.</Text>
-      <Text style={styles.subcopy}>
-        {totalToday === 0 ? "Nothing queued yet." : `${completedToday} of ${totalToday} tasks complete.`}
-      </Text>
-
-      <TaskComposer
-        defaultType="quick"
-        label="ADD TASK"
-        onSubmit={createTask}
-        placeholder="Add something for today..."
-        types={["quick", "daily"]}
-      />
-
-      {error ? <Text style={styles.inlineError}>{error}</Text> : null}
-
-      <View style={styles.progressRow}>
-        <ProgressCard label="Complete" value={`${completionPercent}%`} detail={`${completedToday}/${totalToday} done`} />
-        <ProgressCard label="Daily" value={`${completedDaily}/${dailyTasks.length}`} detail="Routines today" />
-      </View>
-
-      <SectionTitle title="Daily routines" detail={`${dailyTasks.length} active`} />
-      {dailyTasks.length === 0 ? (
-        <Text style={styles.emptyCopy}>Add a routine to build your streak.</Text>
-      ) : (
-        dailyTasks.map((task, index) => {
-          const complete = isCompletedOnDate(snapshot.dailyCompletions, task.id, todayLocalDate);
-          return (
-            <TaskRow
-              key={task.id}
-              canMoveDown={index < dailyTasks.length - 1}
-              canMoveUp={index > 0}
-              task={task}
-              complete={complete}
-              streak={getDailyStreak(snapshot, task.id, todayLocalDate)}
-              meta={complete ? "Completed today" : "Keep the streak going"}
-              onDelete={() => archiveTask(task.id)}
-              onMoveDown={() => moveTask(task.id, "down")}
-              onMoveUp={() => moveTask(task.id, "up")}
-              onToggle={() => toggleTask(task)}
-            />
-          );
-        })
-      )}
-
-      <SectionTitle title="Quick tasks" detail={`${quickTasks.filter((task) => !task.completedAt).length} open`} />
-      {quickTasks.length === 0 ? (
-        <Text style={styles.emptyCopy}>No quick tasks for today.</Text>
-      ) : (
-        quickTasks.map((task, index) => (
-          <TaskRow
-            key={task.id}
-            canMoveDown={index < quickTasks.length - 1}
-            canMoveUp={index > 0}
-            task={task}
-            complete={Boolean(task.completedAt)}
-            meta={task.completedAt ? "Completed" : "One-time task"}
-            onDelete={() => archiveTask(task.id)}
-            onMoveDown={() => moveTask(task.id, "down")}
-            onMoveUp={() => moveTask(task.id, "up")}
-            onToggle={() => toggleTask(task)}
+    <View style={styles.screen}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.content}
+        onScroll={(event) => setScrollOffsetY(event.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+        style={styles.scroll}
+      >
+        <View style={styles.brandRow}>
+          <Image
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="Donezo logo"
+            source={require("../../assets/donezo-logo.png")}
+            style={styles.brandIcon}
           />
-        ))
-      )}
+          <View>
+            <Text style={styles.brandName}>Donezo</Text>
+            <Text style={styles.brandDetail}>Personal command center</Text>
+          </View>
+        </View>
+        <Text style={styles.eyebrow}>TODAY</Text>
+        <Text style={styles.title}>Make the day count.</Text>
+        <Text style={styles.subcopy}>
+          {totalToday === 0 ? "Nothing queued yet." : `${completedToday} of ${totalToday} tasks complete.`}
+        </Text>
 
-      <SectionTitle title="Projects" detail={`${snapshot.projects.length} active`} />
-      {snapshot.projects.length === 0 ? (
-        <Text style={styles.emptyCopy}>Create a project to organize bigger work.</Text>
-      ) : (
-        snapshot.projects.map((project) => {
-          const projectTasks = snapshot.tasks.filter((task) => task.projectId === project.id);
-          const completeCount = projectTasks.filter((task) => Boolean(task.completedAt)).length;
-          const percent = projectTasks.length === 0 ? 0 : (completeCount / projectTasks.length) * 100;
-          return (
-            <ProjectCard
-              key={project.id}
-              name={project.name}
-              remaining={projectTasks.length - completeCount}
-              percent={percent}
-            />
-          );
-        })
-      )}
-    </ScrollView>
+        <TaskComposer
+          defaultType="quick"
+          label="ADD TASK"
+          onSubmit={createTask}
+          placeholder="Add something for today..."
+          types={["quick", "daily"]}
+        />
+
+        {error ? <Text style={styles.inlineError}>{error}</Text> : null}
+
+        <View style={styles.progressRow}>
+          <ProgressCard label="Complete" value={`${completionPercent}%`} detail={`${completedToday}/${totalToday} done`} />
+          <ProgressCard label="Daily" value={`${completedDaily}/${dailyTasks.length}`} detail="Routines today" />
+        </View>
+
+        <SectionTitle title="Daily routines" detail={`${dailyTasks.length} active`} />
+        {dailyTasks.length === 0 ? (
+          <Text style={styles.emptyCopy}>Add a routine to build your streak.</Text>
+        ) : (
+          <ReorderableTaskList
+            onMoveTask={moveTaskToIndex}
+            scrollOffsetY={scrollOffsetY}
+            scrollViewRef={scrollViewRef}
+            tasks={dailyTasks}
+            renderTask={(task, { dragHandleProps, isDragging, onLayout }) => {
+              const complete = isCompletedOnDate(snapshot.dailyCompletions, task.id, todayLocalDate);
+              return (
+                <TaskRow
+                  key={task.id}
+                  complete={complete}
+                  dragHandleProps={dragHandleProps}
+                  isDragging={isDragging}
+                  meta={complete ? "Completed today" : "Keep the streak going"}
+                  onDelete={() => deleteTask(task)}
+                  onLayout={onLayout}
+                  onToggle={() => toggleTask(task)}
+                  streak={getDailyStreak(snapshot, task.id, todayLocalDate)}
+                  task={task}
+                />
+              );
+            }}
+          />
+        )}
+
+        <SectionTitle title="Quick tasks" detail={`${quickTasks.filter((task) => !task.completedAt).length} open`} />
+        {quickTasks.length === 0 ? (
+          <Text style={styles.emptyCopy}>No quick tasks for today.</Text>
+        ) : (
+          <ReorderableTaskList
+            onMoveTask={moveTaskToIndex}
+            scrollOffsetY={scrollOffsetY}
+            scrollViewRef={scrollViewRef}
+            tasks={quickTasks}
+            renderTask={(task, { dragHandleProps, isDragging, onLayout }) => (
+              <TaskRow
+                key={task.id}
+                complete={Boolean(task.completedAt)}
+                dragHandleProps={dragHandleProps}
+                isDragging={isDragging}
+                meta={task.completedAt ? "Completed" : "One-time task"}
+                onDelete={() => deleteTask(task)}
+                onLayout={onLayout}
+                onToggle={() => toggleTask(task)}
+                task={task}
+              />
+            )}
+          />
+        )}
+
+        <SectionTitle title="Projects" detail={`${snapshot.projects.length} active`} />
+        {snapshot.projects.length === 0 ? (
+          <Text style={styles.emptyCopy}>Create a project to organize bigger work.</Text>
+        ) : (
+          snapshot.projects.map((project) => {
+            const projectTasks = snapshot.tasks.filter((task) => task.projectId === project.id);
+            const completeCount = projectTasks.filter((task) => Boolean(task.completedAt)).length;
+            const percent = projectTasks.length === 0 ? 0 : (completeCount / projectTasks.length) * 100;
+            return (
+              <ProjectCard
+                key={project.id}
+                name={project.name}
+                remaining={projectTasks.length - completeCount}
+                percent={percent}
+              />
+            );
+          })
+        )}
+      </ScrollView>
+      {deletedTask ? <TaskUndoToast onUndo={undoDelete} taskTitle={deletedTask.title} /> : null}
+    </View>
   );
 }
 
@@ -158,7 +194,8 @@ function SectionTitle({ title, detail }: { title: string; detail: string }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 20, paddingBottom: 36 },
+  scroll: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 20, paddingBottom: 86 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24, backgroundColor: colors.bg },
   brandRow: {
     flexDirection: "row",

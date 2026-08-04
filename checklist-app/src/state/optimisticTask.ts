@@ -19,7 +19,9 @@ export function nextTaskSortOrder(snapshot: ChecklistSnapshot, input: CreateTask
     return task.projectId === null && task.type === input.type;
   });
 
-  return siblings.reduce((highest, task) => Math.max(highest, task.sortOrder), 0) + 1;
+  if (siblings.length === 0) return 1;
+
+  return siblings.reduce((lowest, task) => Math.min(lowest, task.sortOrder), siblings[0]!.sortOrder) - 1;
 }
 
 export function createOptimisticTask(
