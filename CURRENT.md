@@ -4,12 +4,12 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current checkpoint:** task-ordering implementation is complete, committed, pushed, and deployed to the web/PWA. Android `1.0.8` build `11` is queued in EAS and blocked by Expo Android builder availability.
+- **Current checkpoint:** task-ordering implementation is complete, committed, pushed, and deployed to the web/PWA. The first Android `1.0.8` build `11` attempt was canceled before publication so the task-row design could be polished first.
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
 - **Current public Android release:** `1.0.7` build `10`
-- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and finish the Android `1.0.8` release as soon as EAS produces the queued APK.
+- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and wait for user approval before attempting the next Android APK release.
 - **Important don'ts:** do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask for secrets in chat, do not claim release/update prompts are live until APK and `latest.json` are verified live.
 
 ## What changed recently
@@ -42,8 +42,10 @@
 - Added direct target-position reorder planning so a dragged task can be saved in one reorder write, plus undo restore/unarchive support for accidental task deletes.
 - Committed and pushed task-ordering as `dd8841f feat: add drag task ordering`.
 - Prepared Android release version `1.0.8` as `af9311a release: prepare Donezo 1.0.8`.
-- Deployed the latest web/PWA build to Cloudflare Pages deployment `ddd05d77.donezo-ehw.pages.dev`; live custom domain `https://donezo.mv-builds.com/` serves bundle `index-31eaea0ea585f85eb10708a8517c5279.js`.
-- Started EAS Android APK build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` for Donezo `1.0.8` build `11`, but it remains `IN_QUEUE` because Expo/EAS Android builders are degraded on `2026-08-04`.
+- Deployed an initial task-ordering web/PWA build to Cloudflare Pages deployment `ddd05d77.donezo-ehw.pages.dev`.
+- Canceled EAS Android APK build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` for Donezo `1.0.8` build `11` before any APK existed or `latest.json` changed.
+- Polished the task-row design after user feedback: the drag handle is now a warm gold control, the trash action is a cleaner red icon button, and the held row lifts/follows the pointer while adjacent rows spring aside.
+- Deployed the polished task-ordering web/PWA build to Cloudflare Pages deployment `1452a3e8.donezo-ehw.pages.dev`; live custom domain `https://donezo.mv-builds.com/` serves bundle `index-1ede591174a659a3e0f7e53779538773.js`.
 
 ## Latest public release details
 
@@ -100,7 +102,10 @@ Current task-ordering work was verified with:
 - `npm test` in `checklist-app` -> 21 files / 179 tests passed
 - `npm run build:web` in `checklist-app`
 - Cloudflare Pages deploy from `checklist-app/dist` -> deployment `https://ddd05d77.donezo-ehw.pages.dev`
-- Live `https://donezo.mv-builds.com/` and preview deployment both serve `index-31eaea0ea585f85eb10708a8517c5279.js`
+- Refined task-row polish verified with a no-secrets demo web export plus Playwright/Chrome desktop and mobile screenshots in `output/playwright/`
+- Playwright/Chrome drag probe confirmed the row lifts and follows the pointer while the neighboring row shifts aside
+- Cloudflare Pages deploy from `checklist-app/dist` -> deployment `https://1452a3e8.donezo-ehw.pages.dev`
+- Live `https://donezo.mv-builds.com/` and preview deployment both serve `index-1ede591174a659a3e0f7e53779538773.js`
 - Live `https://donezo.mv-builds.com/releases/android/latest.json` intentionally still points to Android `1.0.7` build `10` until the new APK is built, uploaded, and verified.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
@@ -117,7 +122,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
 - User has confirmed the reminder behavior appears to be working in real use.
 - Task-ordering improvements are implemented, verified, committed, pushed, and live for web/PWA users on `donezo.mv-builds.com`.
-- Android `1.0.8` build `11` is queued in EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba`; do not update `latest.json` or claim Android update prompts are live until that APK exists, is uploaded to R2, and is verified.
+- Android `1.0.8` build `11` EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` was canceled before publication; do not update `latest.json` or claim Android update prompts are live until a future APK exists, is uploaded to R2, and is verified.
 - Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
 
@@ -135,10 +140,10 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
-Poll EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba`. If it finishes, download the APK, upload `android/Donezo-1.0.8-build-11.apk` to R2, verify URL/size/SHA/range support, then update and deploy `latest.json` last. If it fails during the Expo Android incident, decide whether to retry after checking Expo status and EAS logs.
+Ask the user to test the polished task-row ordering on the live web/PWA. If approved for Android release later, start a fresh EAS Android build, check the actual remote build number EAS assigns, then upload/verify the APK and update `latest.json` last.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and task-ordering improvements are implemented, committed, pushed, and live on the web/PWA: new tasks insert at the top, rows use a left drag handle instead of arrows, Delete is a trash icon, and task delete has a bottom Undo bar. Android 1.0.7 build 10 remains the latest public APK/latest.json. Android 1.0.8 build 11 was prepared and EAS build b06a6991-99bd-439a-9ba7-96eddc0f84ba is queued, but Expo/EAS Android builders are degraded on 2026-08-04. Next task: poll that EAS build; when it finishes, download/upload/verify the APK, then update and deploy latest.json last. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and polished task-ordering improvements are live on the web/PWA: new tasks insert at the top, rows use a warm gold left drag handle instead of arrows, Delete is a matching trash icon, task delete has a bottom Undo bar, and dragging lifts the row while neighbors spring aside. Android 1.0.7 build 10 remains the latest public APK/latest.json. The first Android 1.0.8 build 11 attempt was canceled before publication; do not update latest.json until a future APK is built/uploaded/verified. Next task: ask the user to test/approve the live web/PWA ordering; only then consider a fresh Android release. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
 ```

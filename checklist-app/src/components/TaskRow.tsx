@@ -31,13 +31,13 @@ export function TaskRow({
     <View onLayout={onLayout} style={[styles.row, isDragging && styles.rowDragging]}>
       <View
         accessible
-        accessibilityHint="Hold and drag to move this task."
+        accessibilityHint="Drag to move this task."
         accessibilityLabel={`Reorder ${task.title}`}
         accessibilityRole="button"
-        style={styles.dragHandle}
+        style={[styles.dragHandle, isDragging && styles.dragHandleActive]}
         {...dragHandleProps}
       >
-        <GripIcon />
+        <GripIcon active={isDragging} />
       </View>
       <Pressable
         accessibilityRole="checkbox"
@@ -72,32 +72,26 @@ export function TaskRow({
   );
 }
 
-function GripIcon() {
+function GripIcon({ active }: { active: boolean }) {
   return (
-    <View style={styles.gripDots}>
-      <View style={styles.gripDotRow}>
-        <View style={styles.gripDot} />
-        <View style={styles.gripDot} />
-      </View>
-      <View style={styles.gripDotRow}>
-        <View style={styles.gripDot} />
-        <View style={styles.gripDot} />
-      </View>
-      <View style={styles.gripDotRow}>
-        <View style={styles.gripDot} />
-        <View style={styles.gripDot} />
-      </View>
+    <View style={styles.gripIcon}>
+      <View style={[styles.gripBar, active && styles.gripBarActive]} />
+      <View style={[styles.gripBar, active && styles.gripBarActive]} />
+      <View style={[styles.gripBar, active && styles.gripBarActive]} />
     </View>
   );
 }
 
 function TrashIcon() {
+  const color = "#F07D70";
+
   return (
     <View accessible={false} style={styles.trashIcon}>
-      <View style={styles.trashLid} />
-      <View style={styles.trashCan}>
-        <View style={styles.trashLine} />
-        <View style={styles.trashLine} />
+      <View style={[styles.trashHandle, { backgroundColor: color }]} />
+      <View style={[styles.trashLid, { backgroundColor: color }]} />
+      <View style={[styles.trashCan, { borderColor: color }]}>
+        <View style={[styles.trashLine, { backgroundColor: color }]} />
+        <View style={[styles.trashLine, { backgroundColor: color }]} />
       </View>
     </View>
   );
@@ -108,42 +102,52 @@ const styles = StyleSheet.create({
     minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 9,
     marginBottom: 8,
-    padding: 10,
+    paddingVertical: 9,
+    paddingRight: 9,
+    paddingLeft: 8,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.panel2,
   },
   rowDragging: {
-    borderColor: "rgba(221,179,79,0.54)",
+    borderColor: "rgba(221,179,79,0.62)",
     backgroundColor: colors.panel3,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 10 },
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 4,
+    shadowRadius: 24,
+    elevation: 8,
   },
   dragHandle: {
     width: 30,
-    minHeight: 38,
+    minHeight: 42,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radii.card,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "rgba(221,179,79,0.16)",
+    backgroundColor: "rgba(221,179,79,0.055)",
   },
-  gripDots: {
-    gap: 3,
+  dragHandleActive: {
+    borderColor: "rgba(255,226,160,0.54)",
+    backgroundColor: "rgba(221,179,79,0.18)",
   },
-  gripDotRow: {
-    flexDirection: "row",
-    gap: 3,
+  gripIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
   },
-  gripDot: {
-    width: 3,
-    height: 3,
+  gripBar: {
+    width: 13,
+    height: 2,
     borderRadius: radii.pill,
-    backgroundColor: "#727B8C",
+    backgroundColor: "rgba(221,179,79,0.58)",
+  },
+  gripBarActive: {
+    backgroundColor: colors.accentSoft,
   },
   toggleArea: {
     flex: 1,
@@ -177,47 +181,49 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
   },
   deleteButton: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: "rgba(242,109,95,0.24)",
-    backgroundColor: "rgba(242,109,95,0.08)",
+    borderColor: "rgba(242,109,95,0.26)",
+    backgroundColor: "rgba(242,109,95,0.075)",
   },
   trashIcon: {
-    width: 16,
-    height: 17,
+    width: 18,
+    height: 19,
     alignItems: "center",
   },
-  trashLid: {
-    width: 13,
+  trashHandle: {
+    width: 6,
     height: 2,
     borderRadius: 2,
-    backgroundColor: colors.danger,
+  },
+  trashLid: {
+    width: 15,
+    height: 2,
+    borderRadius: 2,
+    marginTop: 2,
   },
   trashCan: {
-    width: 11,
+    width: 13,
     height: 13,
     marginTop: 2,
     flexDirection: "row",
     justifyContent: "center",
-    gap: 3,
-    borderWidth: 2,
+    gap: 4,
+    borderWidth: 1.5,
     borderTopWidth: 0,
-    borderColor: colors.danger,
     borderBottomLeftRadius: 3,
     borderBottomRightRadius: 3,
-    paddingTop: 2,
+    paddingTop: 3,
   },
   trashLine: {
     width: 1,
-    height: 8,
+    height: 7,
     borderRadius: 1,
-    backgroundColor: colors.danger,
   },
 });

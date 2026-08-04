@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Dimensions, PanResponder, View } from "react-native";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Animated, Dimensions, PanResponder, StyleSheet, View } from "react-native";
 import type {
   GestureResponderHandlers,
   LayoutChangeEvent,
   PanResponderGestureState,
   ScrollView,
+  StyleProp,
   ViewStyle,
 } from "react-native";
 import type { Task } from "../domain/types";
@@ -23,6 +24,7 @@ type DragState = {
   taskId: string;
   startIndex: number;
   targetIndex: number;
+  activeHeight: number;
   startMiddleY: number;
   startScrollY: number;
   layouts: DragLayout[];
@@ -46,7 +48,7 @@ type ReorderableTaskListProps = {
 
 const FALLBACK_ROW_HEIGHT = 70;
 const EDGE_SCROLL_ZONE = 86;
-const EDGE_SCROLL_STEP = 28;
+const EDGE_SCROLL_STEP = 20;
 
 export function ReorderableTaskList({
   tasks,
@@ -59,13 +61,46 @@ export function ReorderableTaskList({
   const rowLayouts = useRef(new Map<string, RowLayout>());
   const dragStateRef = useRef<DragState | null>(null);
   const scrollOffsetRef = useRef(scrollOffsetY);
+  const dragOffsetY = useRef(new Animated.Value(0)).current;
+  const shiftValues = useRef(new Map<string, Animated.Value>());
   const [dragState, setDragState] = useState<DragState | null>(null);
+
+  const getShiftValue = useCallback((taskId: string) => {
+    const existing = shiftValues.current.get(taskId);
+    if (existing) return existing;
+
+    const nextValue = new Animated.Value(0);
+    shiftValues.current.set(taskId, nextValue);
+    return nextValue;
+  }, []);
 
   useEffect(() => {
     scrollOffsetRef.current = scrollOffsetY;
   }, [scrollOffsetY]);
 
+  useEffect(() => {
+    const taskIds = new Set(tasks.map((task) => task.id));
+    shiftValues.current.forEach((_value, taskId) => {
+      if (!taskIds.has(taskId)) shiftValues.current.delete(taskId);
+    });
+
+    tasks.forEach((task, index) => {
+      const targetShift = dragState && task.id !== dragState.taskId ? getNeighborShift(index, dragState) : 0;
+      Animated.spring(getShiftValue(task.id), {
+        toValue: targetShift,
+        useNativeDriver: true,
+        stiffness: 320,
+        damping: 34,
+        mass: 0.8,
+        restDisplacementThreshold: 0.4,
+        restSpeedThreshold: 0.4,
+      }).start();
+    });
+  }, [dragState, getShiftValue, tasks]);
+
   const beginDrag = (task: Task, index: number) => {
+    dragOffsetY.setValue(0);
+
     const layouts = tasks.map((candidate, candidateIndex) => {
       const layout = rowLayouts.current.get(candidate.id) ?? {
         y: candidateIndex * FALLBACK_ROW_HEIGHT,
@@ -80,10 +115,12 @@ export function ReorderableTaskList({
       y: index * FALLBACK_ROW_HEIGHT,
       height: FALLBACK_ROW_HEIGHT,
     };
+    const activeHeight = Math.max(1, taskLayout.height);
     const nextDragState = {
       taskId: task.id,
       startIndex: index,
       targetIndex: index,
+      activeHeight,
       startMiddleY: taskLayout.y + taskLayout.height / 2,
       startScrollY: scrollOffsetRef.current,
       layouts,
@@ -98,9 +135,11 @@ export function ReorderableTaskList({
     if (!currentDragState) return;
 
     const scrollDelta = scrollOffsetRef.current - currentDragState.startScrollY;
-    const middleY = currentDragState.startMiddleY + gesture.dy + scrollDelta;
+    const dragY = gesture.dy + scrollDelta;
+    const middleY = currentDragState.startMiddleY + dragY;
     const targetIndex = findTargetIndex(currentDragState.layouts, middleY);
 
+    dragOffsetY.setValue(dragY);
     maybeAutoScroll(gesture.moveY, scrollViewRef, scrollOffsetRef.current);
 
     if (targetIndex === currentDragState.targetIndex) return;
@@ -113,35 +152,38 @@ export function ReorderableTaskList({
   const finishDrag = () => {
     const completedDragState = dragStateRef.current;
     dragStateRef.current = null;
-    setDragState(null);
+    dragOffsetY.setValue(0);
 
     if (!completedDragState || completedDragState.targetIndex === completedDragState.startIndex) {
+      setDragState(null);
       return;
     }
 
     void onMoveTask(completedDragState.taskId, completedDragState.targetIndex);
+    setDragState(null);
   };
 
   const cancelDrag = () => {
     dragStateRef.current = null;
+    dragOffsetY.setValue(0);
     setDragState(null);
   };
 
-  const displayedTasks = dragState ? movePreview(tasks, dragState.taskId, dragState.targetIndex) : tasks;
-
   return (
     <View style={style}>
-      {displayedTasks.map((task, index) => (
-        <Fragment key={task.id}>
-          {renderTask(task, {
-            dragHandleProps: createDragHandleProps(task, index, tasks.length, beginDrag, updateDrag, finishDrag, cancelDrag),
-            index,
-            isDragging: dragState?.taskId === task.id,
-            onLayout: (event) => {
-              rowLayouts.current.set(task.id, event.nativeEvent.layout);
-            },
-          })}
-        </Fragment>
+      {tasks.map((task, index) => (
+        <Animated.View key={task.id} style={getDragItemStyle(task.id, dragState, dragOffsetY, getShiftValue(task.id))}>
+          <Fragment>
+            {renderTask(task, {
+              dragHandleProps: createDragHandleProps(task, index, tasks.length, beginDrag, updateDrag, finishDrag, cancelDrag),
+              index,
+              isDragging: dragState?.taskId === task.id,
+              onLayout: (event) => {
+                rowLayouts.current.set(task.id, event.nativeEvent.layout);
+              },
+            })}
+          </Fragment>
+        </Animated.View>
       ))}
     </View>
   );
@@ -157,8 +199,8 @@ function createDragHandleProps(
   cancelDrag: () => void,
 ): GestureResponderHandlers {
   return PanResponder.create({
-    onStartShouldSetPanResponder: () => taskCount > 1,
-    onMoveShouldSetPanResponder: (_event, gesture) => taskCount > 1 && Math.abs(gesture.dy) > 3,
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_event, gesture) => taskCount > 1 && Math.abs(gesture.dy) > 2,
     onPanResponderGrant: () => beginDrag(task, index),
     onPanResponderMove: (_event, gesture) => updateDrag(gesture),
     onPanResponderRelease: finishDrag,
@@ -166,6 +208,33 @@ function createDragHandleProps(
     onPanResponderTerminationRequest: () => false,
     onShouldBlockNativeResponder: () => true,
   }).panHandlers;
+}
+
+function getDragItemStyle(
+  taskId: string,
+  dragState: DragState | null,
+  dragOffsetY: Animated.Value,
+  shiftY: Animated.Value,
+): StyleProp<ViewStyle> {
+  if (!dragState) return [styles.item, { transform: [{ translateY: shiftY }] }];
+
+  if (taskId === dragState.taskId) {
+    return [styles.item, styles.draggedItem, { transform: [{ translateY: dragOffsetY }, { scale: 1.012 }] }];
+  }
+
+  return [styles.item, styles.shiftedItem, { transform: [{ translateY: shiftY }] }];
+}
+
+function getNeighborShift(index: number, dragState: DragState): number {
+  if (dragState.targetIndex > dragState.startIndex && index > dragState.startIndex && index <= dragState.targetIndex) {
+    return -dragState.activeHeight;
+  }
+
+  if (dragState.targetIndex < dragState.startIndex && index >= dragState.targetIndex && index < dragState.startIndex) {
+    return dragState.activeHeight;
+  }
+
+  return 0;
 }
 
 function findTargetIndex(layouts: DragLayout[], middleY: number): number {
@@ -194,14 +263,19 @@ function maybeAutoScroll(
   }
 }
 
-function movePreview(tasks: Task[], taskId: string, targetIndex: number): Task[] {
-  const currentIndex = tasks.findIndex((task) => task.id === taskId);
-  if (currentIndex < 0 || currentIndex === targetIndex) return tasks;
+const webSlideStyle = {
+  transitionDuration: "120ms",
+  transitionProperty: "transform",
+  transitionTimingFunction: "cubic-bezier(0.2, 0, 0, 1)",
+} as ViewStyle;
 
-  const nextTasks = [...tasks];
-  const [task] = nextTasks.splice(currentIndex, 1);
-  if (!task) return tasks;
-
-  nextTasks.splice(Math.max(0, Math.min(targetIndex, nextTasks.length)), 0, task);
-  return nextTasks;
-}
+const styles = StyleSheet.create({
+  item: {
+    position: "relative",
+  },
+  draggedItem: {
+    zIndex: 20,
+    elevation: 8,
+  },
+  shiftedItem: webSlideStyle,
+});
