@@ -13,6 +13,8 @@ type PushSubscriptionLike = {
   toJSON: () => PushSubscriptionJson;
 };
 
+const DONEZO_SERVICE_WORKER_URL = "/donezo-service-worker.js?v=20260804-reminders";
+
 export type WebPushSupport = {
   supported: boolean;
   reason?: string;
@@ -97,7 +99,7 @@ export async function registerDonezoServiceWorker(): Promise<ServiceWorkerRegist
     throw new Error(support.reason ?? "Web reminders are unavailable.");
   }
 
-  return navigator.serviceWorker.register("/donezo-service-worker.js");
+  return navigator.serviceWorker.register(DONEZO_SERVICE_WORKER_URL);
 }
 
 export async function subscribeToWebPush(publicVapidKey: string): Promise<WebPushSubscriptionInput> {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildReminderJobs, isDeadSubscriptionStatus, mapDueReminderRow } from "./reminders";
+import {
+  buildReminderJobs,
+  isDeadSubscriptionStatus,
+  mapDueReminderRow,
+  normalizeReminderWorkerEnv,
+} from "./reminders";
 import type { ReminderDataset } from "./reminders";
 
 const baseDataset = {
@@ -101,6 +106,26 @@ describe("reminder jobs", () => {
       localDate: "2026-08-03",
       reminderTime: "17:00",
       unfinishedCount: 2,
+    });
+  });
+
+  it("removes hidden BOM and surrounding whitespace from Worker config values", () => {
+    expect(
+      normalizeReminderWorkerEnv({
+        SUPABASE_URL: "\uFEFFhttps://example.supabase.co\n",
+        SUPABASE_PUBLISHABLE_KEY: "\uFEFFsb_publishable_key\n",
+        REMINDER_WORKER_TOKEN: " worker-token ",
+        WEB_PUSH_PUBLIC_KEY: "\uFEFFpublic-key",
+        WEB_PUSH_PRIVATE_KEY: " private-key ",
+        WEB_PUSH_SUBJECT: " mailto:support@example.com ",
+      }),
+    ).toEqual({
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_PUBLISHABLE_KEY: "sb_publishable_key",
+      REMINDER_WORKER_TOKEN: "worker-token",
+      WEB_PUSH_PUBLIC_KEY: "public-key",
+      WEB_PUSH_PRIVATE_KEY: "private-key",
+      WEB_PUSH_SUBJECT: "mailto:support@example.com",
     });
   });
 });

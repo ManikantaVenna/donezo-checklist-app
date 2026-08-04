@@ -18,7 +18,10 @@ self.addEventListener("push", (event) => {
       body: payload.body,
       icon: "/icons/donezo-256.png",
       badge: "/icons/donezo-256.png",
-      tag: "donezo-daily-reminder",
+      tag: `donezo-daily-reminder-${Date.now()}`,
+      renotify: true,
+      requireInteraction: true,
+      timestamp: Date.now(),
       data: { url: payload.url || "/" },
     }),
   );

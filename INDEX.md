@@ -20,7 +20,7 @@
 - `checklist-app/src/data/mockChecklistRepository.ts` - demo/mock persistence.
 - `checklist-app/src/domain/` - dates, reminders, ordering, sorting, streak tiers, release parsing, timezones.
 - `checklist-app/src/lib/` - Supabase client, reminders integration, app release checks, version helpers.
-- `checklist-app/src/lib/webPush.ts` - browser PWA/Web Push support helpers.
+- `checklist-app/src/lib/webPush.ts` - browser PWA/Web Push support helpers and versioned service-worker registration.
 - `checklist-app/assets/` - icons, logo, splash, fonts, streak badge images.
 - `checklist-app/public/` - web static pages, PWA manifest/service worker/icons, `_headers`, download page, privacy/support pages, release manifest.
 - `checklist-app/supabase/migrations/` - Supabase schema, indexes, reorder RPC, policy migrations.
@@ -35,7 +35,7 @@
 - `checklist-app/public/download.js` - download page behavior.
 - `checklist-app/public/releases/android/latest.json` - Android update manifest.
 - `reminder-worker/` - Cloudflare Worker cron for PWA Web Push reminders.
-- `reminder-worker/src/reminders.ts` - reminder due-time filtering, unfinished daily checks, push sending, dead subscription cleanup.
+- `reminder-worker/src/reminders.ts` - reminder due-time filtering, unfinished daily checks, Worker env normalization, push sending, dead subscription cleanup.
 - `reminder-worker/wrangler.jsonc` - one-minute cron trigger and Worker config.
 - `checklist-app/supabase/migrations/20260803181500_add_web_push_delivery_records.sql` - private PWA delivery records, retry-window due RPC, and delivery-record RPC.
 

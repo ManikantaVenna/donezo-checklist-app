@@ -89,6 +89,17 @@ export type DueReminderRpcRow = {
 
 const REMINDER_LOOKBACK_MINUTES = 5;
 
+export function normalizeReminderWorkerEnv(env: ReminderWorkerEnv): ReminderWorkerEnv {
+  return {
+    SUPABASE_URL: normalizeWorkerConfigValue(env.SUPABASE_URL),
+    SUPABASE_PUBLISHABLE_KEY: normalizeWorkerConfigValue(env.SUPABASE_PUBLISHABLE_KEY),
+    REMINDER_WORKER_TOKEN: normalizeWorkerConfigValue(env.REMINDER_WORKER_TOKEN),
+    WEB_PUSH_PUBLIC_KEY: normalizeWorkerConfigValue(env.WEB_PUSH_PUBLIC_KEY),
+    WEB_PUSH_PRIVATE_KEY: normalizeWorkerConfigValue(env.WEB_PUSH_PRIVATE_KEY),
+    WEB_PUSH_SUBJECT: normalizeWorkerConfigValue(env.WEB_PUSH_SUBJECT),
+  };
+}
+
 export function buildReminderJobs(
   now: Date,
   dataset: ReminderDataset,
@@ -168,10 +179,11 @@ export function mapDueReminderRow(row: DueReminderRpcRow): ReminderJob {
 }
 
 export async function runScheduledReminders(env: ReminderWorkerEnv, now = new Date()): Promise<ReminderRunResult> {
-  const db = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
+  const config = normalizeReminderWorkerEnv(env);
+  const db = createClient(config.SUPABASE_URL, config.SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const jobs = await loadDueReminderJobs(db, env.REMINDER_WORKER_TOKEN, now);
+  const jobs = await loadDueReminderJobs(db, config.REMINDER_WORKER_TOKEN, now);
   const result: ReminderRunResult = {
     dueJobs: jobs.length,
     sent: 0,
@@ -179,23 +191,23 @@ export async function runScheduledReminders(env: ReminderWorkerEnv, now = new Da
     failed: 0,
   };
 
-  webpush.setVapidDetails(env.WEB_PUSH_SUBJECT, env.WEB_PUSH_PUBLIC_KEY, env.WEB_PUSH_PRIVATE_KEY);
+  webpush.setVapidDetails(config.WEB_PUSH_SUBJECT, config.WEB_PUSH_PUBLIC_KEY, config.WEB_PUSH_PRIVATE_KEY);
 
   for (const job of jobs) {
     try {
       await sendReminder(job);
-      await recordReminderDelivery(db, env.REMINDER_WORKER_TOKEN, job, "sent");
+      await recordReminderDelivery(db, config.REMINDER_WORKER_TOKEN, job, "sent");
       result.sent += 1;
     } catch (err) {
       const status = getPushErrorStatus(err);
       if (status && isDeadSubscriptionStatus(status)) {
-        await recordReminderDelivery(db, env.REMINDER_WORKER_TOKEN, job, "deleted", status, getPushErrorMessage(err));
-        await deleteSubscription(db, env.REMINDER_WORKER_TOKEN, job.subscriptionId);
+        await recordReminderDelivery(db, config.REMINDER_WORKER_TOKEN, job, "deleted", status, getPushErrorMessage(err));
+        await deleteSubscription(db, config.REMINDER_WORKER_TOKEN, job.subscriptionId);
         result.deletedSubscriptions += 1;
         continue;
       }
 
-      await recordReminderDelivery(db, env.REMINDER_WORKER_TOKEN, job, "failed", status, getPushErrorMessage(err));
+      await recordReminderDelivery(db, config.REMINDER_WORKER_TOKEN, job, "failed", status, getPushErrorMessage(err));
       result.failed += 1;
       console.error(
         JSON.stringify({
@@ -362,4 +374,8 @@ function getPushErrorMessage(err: unknown): string | null {
   if (err instanceof Error) return err.message.slice(0, 500);
   if (typeof err === "string") return err.slice(0, 500);
   return null;
+}
+
+function normalizeWorkerConfigValue(value: string): string {
+  return value.replace(/^\uFEFF+/, "").trim();
 }
