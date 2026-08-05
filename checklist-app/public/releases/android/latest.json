@@ -1,15 +1,15 @@
 {
   "platform": "android",
-  "version": "1.0.7",
-  "buildVersion": 10,
-  "publishedAt": "2026-07-21T04:45:14.398Z",
+  "version": "1.0.8",
+  "buildVersion": 12,
+  "publishedAt": "2026-08-05T00:48:00.149Z",
   "downloadPageUrl": "https://donezo.mv-builds.com/download",
-  "apkUrl": "https://downloads.mv-builds.com/android/Donezo-1.0.7-build-10.apk",
-  "fileSizeBytes": 37594996,
-  "sha256": "4f907ff9991655fe5be310c072f14a4177f05eaa208101684367bbf9822c6062",
+  "apkUrl": "https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk",
+  "fileSizeBytes": 37617372,
+  "sha256": "1ca27735788fa870271eb76c352c20c5449ab5473c25639999dbc5c22a99e6c0",
   "releaseNotes": [
-    "Streak totals stay visible and accurate after each daily reset.",
-    "Premium streak badges now display clearly across phone and web.",
-    "Donezo now notifies you when a newer Android build is ready."
+    "New tasks now appear at the top of their list.",
+    "Task rows use the familiar check circle and arrow controls again, with a compact trash button and undo for accidental deletes.",
+    "Daily reminders stay focused on unfinished routines."
   ]
 }

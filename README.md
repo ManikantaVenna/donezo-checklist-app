@@ -119,11 +119,11 @@ npx wrangler deploy --dry-run
 
 The current public Android release is:
 
-- Version: `1.0.7`
-- Build: `10`
+- Version: `1.0.8`
+- Build: `12`
 - Web browser app: https://donezo.mv-builds.com
 - Download page: https://donezo.mv-builds.com/download
-- APK host: https://downloads.mv-builds.com/android/Donezo-1.0.7-build-10.apk
+- APK host: https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk
 
 The release manifest is published at:
 

@@ -78,6 +78,7 @@ not afraid to use it.
 - Designed and implemented premium streak badge tiers and images.
 - Built permanent download infrastructure with Cloudflare Pages, R2, and Worker.
 - Published Donezo `1.0.7` build `10`.
+- Published Donezo `1.0.8` build `12`.
 - Created public GitHub repo and pushed the project.
 - Cleaned GitHub co-author metadata so public attribution is Manikanta only.
 - Added project continuity files so future chats can resume cleanly.

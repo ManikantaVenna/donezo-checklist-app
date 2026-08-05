@@ -4,12 +4,12 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current checkpoint:** task-ordering implementation is complete, committed, pushed, and deployed to the web/PWA. After real-device testing, the drag/grip reorder UI was removed and the app returned to the old left check-circle + right arrow controls, while keeping the compact trash icon and new-task-at-top behavior. The first Android `1.0.8` build `11` attempt was canceled before publication so the task-row design could be polished first.
+- **Current checkpoint:** Donezo Android `1.0.8` build `12` is built, uploaded, verified, published in `latest.json`, and live on the download page. The release keeps the old left check-circle + right arrow row controls, uses the compact trash icon with Undo, preserves new-task-at-top behavior, and includes the PWA/native reminder fixes.
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
-- **Current public Android release:** `1.0.7` build `10`
-- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and wait for user approval before attempting the next Android APK release.
+- **Current public Android release:** `1.0.8` build `12`
+- **Current objective:** keep Donezo stable, public, resumable across fresh chats, and ask the user to test the Android update/install path plus the final row controls.
 - **Important don'ts:** do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask for secrets in chat, do not claim release/update prompts are live until APK and `latest.json` are verified live.
 
 ## What changed recently
@@ -20,6 +20,7 @@
 - Cleaned GitHub history so the public repo attribution shows Manikanta only, removing Claude co-author trailers from commit messages.
 - Added README links for both the safe web browser app and Android download page.
 - Released Android `1.0.7` build `10`.
+- Released Android `1.0.8` build `12`.
 - Hosted APK downloads permanently through Cloudflare R2 + Worker at `downloads.mv-builds.com`.
 - Hosted the web/download site through Cloudflare Pages at `donezo.mv-builds.com`.
 - Added in-app Android update checking so users on build `10+` can see future update prompts.
@@ -55,14 +56,19 @@
 - Removed the now-unused `ReorderableTaskList` and `dragTarget` helper/test files.
 - Committed and pushed the row-control restore as `67d78e6 fix: restore arrow task controls`.
 - Deployed the restored arrow-control web/PWA build to Cloudflare Pages deployment `e9258f2d.donezo-ehw.pages.dev`; live custom domain `https://donezo.mv-builds.com/` serves bundle `index-e8dda6aae1390ea54ffdab5d68e93733.js`.
+- Aligned Expo SDK patch versions, verified Expo Doctor, and committed/pushed the release source as `1ea1f0e chore: align Expo SDK patches`.
+- Built EAS Android APK `d91d7e46-3fce-4bbf-bb3b-6b1cea6410aa` from source commit `1ea1f0eca51a0264ea625316fbe222ee5086868f`; EAS assigned app version `1.0.8` and build version `12`.
+- Uploaded `Donezo-1.0.8-build-12.apk` to Cloudflare R2 at `https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk`.
+- Published `latest.json` for Android `1.0.8` build `12` and deployed Cloudflare Pages production deployment `47ca4f09-fe40-4df4-be6e-5ab034925676` (`https://47ca4f09.donezo-ehw.pages.dev`).
+- Verified the live download page shows Version `1.0.8`, Build `12`, SHA-256 `1ca27735788fa870271eb76c352c20c5449ab5473c25639999dbc5c22a99e6c0`, and its button points to the new APK.
 
 ## Latest public release details
 
-- **Version:** `1.0.7`
-- **Build:** `10`
-- **APK:** `https://downloads.mv-builds.com/android/Donezo-1.0.7-build-10.apk`
-- **APK size:** `37,594,996` bytes
-- **SHA-256:** `4f907ff9991655fe5be310c072f14a4177f05eaa208101684367bbf9822c6062`
+- **Version:** `1.0.8`
+- **Build:** `12`
+- **APK:** `https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk`
+- **APK size:** `37,617,372` bytes
+- **SHA-256:** `1ca27735788fa870271eb76c352c20c5449ab5473c25639999dbc5c22a99e6c0`
 - **Manifest:** `https://donezo.mv-builds.com/releases/android/latest.json`
 - **Download page:** `https://donezo.mv-builds.com/download`
 - **Bridge limitation:** users must have build `10` or newer before future in-app update prompts can appear. Older APKs cannot show a prompt because they do not contain the update checker.
@@ -127,7 +133,10 @@ Current task-ordering work was verified with:
 - Cloudflare Pages deploy from `checklist-app/dist` -> deployment `https://e9258f2d.donezo-ehw.pages.dev`
 - Live `https://donezo.mv-builds.com/` and preview deployment both serve `index-e8dda6aae1390ea54ffdab5d68e93733.js`
 - Live bundle no longer contains the old drag strings (`Drag to move this task`, `ReorderableTaskList`) and still contains the arrow/delete action strings.
-- Live `https://donezo.mv-builds.com/releases/android/latest.json` intentionally still points to Android `1.0.7` build `10` until the new APK is built, uploaded, and verified.
+- Android release `1.0.8` build `12` verified with `npx expo-doctor`, `npm run typecheck`, `npm test` -> 21 files / 179 tests passed, `npm run build:web`, EAS build `d91d7e46-3fce-4bbf-bb3b-6b1cea6410aa`, remote R2 upload, APK HEAD/range/hash checks, live manifest checks, and a Playwright browser check of the download page.
+- Live APK checks for `https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk`: HEAD `200`, `Content-Length` `37617372`, content type `application/vnd.android.package-archive`, range `206` for `bytes 0-1023/37617372`, downloaded size `37617372`, SHA-256 `1ca27735788fa870271eb76c352c20c5449ab5473c25639999dbc5c22a99e6c0`.
+- Live `https://donezo.mv-builds.com/releases/android/latest.json` returns Android `1.0.8` build `12`; build `10` sees it as newer and build `12` does not.
+- Live `https://donezo.mv-builds.com/download/` shows Version `1.0.8`, Build `12`, and links its download button to the new APK.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -143,9 +152,9 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
 - User has confirmed the reminder behavior appears to be working in real use.
 - Task-ordering improvements are implemented, verified, committed, pushed, and live for web/PWA users on `donezo.mv-builds.com`.
-- Current task row ordering uses old-style arrow controls, not drag/grip controls. Ask the user to retest on the live site/Home Screen PWA before preparing any Android APK release.
-- Android `1.0.8` build `11` EAS build `b06a6991-99bd-439a-9ba7-96eddc0f84ba` was canceled before publication; do not update `latest.json` or claim Android update prompts are live until a future APK exists, is uploaded to R2, and is verified.
-- Android native reminder guard changes are in source only until the next APK release; do not say Android APK users have that native fix until a new APK and `latest.json` are published.
+- Current task row ordering uses old-style arrow controls, not drag/grip controls.
+- Android `1.0.8` build `12` is the current public APK and live manifest release. Users on Android build `10` should see the update prompt because `latest.json` now advertises build `12`; older APKs before build `10` still cannot show update prompts because they do not contain the checker.
+- Android native reminder guard changes are now included in the public Android `1.0.8` build `12` APK.
 - PWA reminder source/docs belong to the current checkpoint; keep the tree clean after committing.
 
 ## Known risks / watch items
@@ -162,10 +171,10 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
-Ask the user to test the restored arrow task-row ordering on the live web/PWA. If approved for Android release later, start a fresh EAS Android build, check the actual remote build number EAS assigns, then upload/verify the APK and update `latest.json` last.
+Ask the user to test the Android `1.0.8` build `12` update/install path, confirm the final row controls/new-task-at-top behavior on Android, and then choose the next Donezo fix or feature.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: PWA Web Push reminders are deployed and verified, and task-ordering improvements are live on the web/PWA: new tasks insert at the top, rows use the old left check circle and right up/down arrow controls, Delete is a matching trash icon, and task delete has a bottom Undo bar. The drag/grip reorder UI was removed after user testing. Android 1.0.7 build 10 remains the latest public APK/latest.json. The first Android 1.0.8 build 11 attempt was canceled before publication; do not update latest.json until a future APK is built/uploaded/verified. Next task: ask the user to test/approve the live web/PWA ordering; only then consider a fresh Android release. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim Android update prompts are live until APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: Donezo Android 1.0.8 build 12 is the latest public APK/latest.json release, live at https://donezo.mv-builds.com/download with APK https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk. PWA Web Push reminders are deployed and verified. Task ordering is final: new tasks insert at the top, rows use the old left check circle and right up/down arrow controls, Delete is a compact trash icon, and task delete has a bottom Undo bar; drag/grip reorder was removed after user testing. Next task: ask the user to test the Android 1.0.8 update/install path and final row controls, then choose the next Donezo fix or feature. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim future Android update prompts are live until that future APK/latest.json are verified.
 ```

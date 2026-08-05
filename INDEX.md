@@ -13,9 +13,9 @@
 - `checklist-app/` - Expo/React Native app.
 - `checklist-app/App.tsx` - app shell and navigation.
 - `checklist-app/src/screens/` - auth, today, daily, projects, settings screens.
-- `checklist-app/src/components/` - shared UI components including task rows, drag reorder list, undo toast, buttons, streak badges, update notice.
+- `checklist-app/src/components/` - shared UI components including task rows, undo toast, buttons, streak badges, update notice.
 - `checklist-app/src/hooks/useTaskDeleteUndo.ts` - task delete snackbar/undo timing shared by Today and Projects.
-- `checklist-app/src/state/ChecklistContext.tsx` - checklist state, optimistic updates, delete undo restore, drag reorder persistence, refresh/realtime reconciliation.
+- `checklist-app/src/state/ChecklistContext.tsx` - checklist state, optimistic updates, delete undo restore, task reorder persistence, refresh/realtime reconciliation.
 - `checklist-app/src/state/AppUpdateContext.tsx` - Android update prompt state.
 - `checklist-app/src/data/supabaseChecklistRepository.ts` - Supabase checklist persistence.
 - `checklist-app/src/data/mockChecklistRepository.ts` - demo/mock persistence.
@@ -88,7 +88,7 @@ Live release verification should include:
 - Web app: `https://donezo.mv-builds.com`
 - Download page: `https://donezo.mv-builds.com/download`
 - APK host: `https://downloads.mv-builds.com`
-- Current APK: `https://downloads.mv-builds.com/android/Donezo-1.0.7-build-10.apk`
+- Current APK: `https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk`
 - Supabase project ref: `hymbwzxgrvghvtfnookw`
 - Supabase URL: `https://hymbwzxgrvghvtfnookw.supabase.co`
 - Resend verified sending domain/subdomain: `mail.mv-builds.com`
