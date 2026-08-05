@@ -4,7 +4,7 @@
 
 - **Project:** Donezo checklist app
 - **Branch:** `codex/public-launch`
-- **Current checkpoint:** Donezo Android `1.0.8` build `12` is built, uploaded, verified, published in `latest.json`, and live on the download page. The release keeps the old left check-circle + right arrow row controls, uses the compact trash icon with Undo, preserves new-task-at-top behavior, and includes the PWA/native reminder fixes.
+- **Current checkpoint:** Donezo Android `1.0.8` build `12` is built, uploaded, verified, published in `latest.json`, and live on the download page. The public download page now also includes a clear iPhone/Home Screen setup guide. The Android release keeps the old left check-circle + right arrow row controls, uses the compact trash icon with Undo, preserves new-task-at-top behavior, and includes the PWA/native reminder fixes.
 - **GitHub repo:** `https://github.com/ManikantaVenna/donezo-checklist-app`
 - **Live web app:** `https://donezo.mv-builds.com`
 - **Live Android download page:** `https://donezo.mv-builds.com/download`
@@ -61,6 +61,7 @@
 - Uploaded `Donezo-1.0.8-build-12.apk` to Cloudflare R2 at `https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk`.
 - Published `latest.json` for Android `1.0.8` build `12` and deployed Cloudflare Pages production deployment `47ca4f09-fe40-4df4-be6e-5ab034925676` (`https://47ca4f09.donezo-ehw.pages.dev`).
 - Verified the live download page shows Version `1.0.8`, Build `12`, SHA-256 `1ca27735788fa870271eb76c352c20c5449ab5473c25639999dbc5c22a99e6c0`, and its button points to the new APK.
+- Added a separate iPhone guide to the public download page: it explains there is no iPhone APK, Donezo works almost exactly like an app from the Home Screen, and users should add Donezo from Safari before enabling web reminders.
 
 ## Latest public release details
 
@@ -137,6 +138,7 @@ Current task-ordering work was verified with:
 - Live APK checks for `https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk`: HEAD `200`, `Content-Length` `37617372`, content type `application/vnd.android.package-archive`, range `206` for `bytes 0-1023/37617372`, downloaded size `37617372`, SHA-256 `1ca27735788fa870271eb76c352c20c5449ab5473c25639999dbc5c22a99e6c0`.
 - Live `https://donezo.mv-builds.com/releases/android/latest.json` returns Android `1.0.8` build `12`; build `10` sees it as newer and build `12` does not.
 - Live `https://donezo.mv-builds.com/download/` shows Version `1.0.8`, Build `12`, and links its download button to the new APK.
+- Download-page iPhone guide verified with red/green `npm test -- public/download-page.test.ts`, `npm run typecheck`, `npm test` -> 23 files / 181 tests passed, and `npm run build:web`.
 
 For any new change, rerun the smallest relevant checks before claiming completion.
 
@@ -148,6 +150,7 @@ For any new change, rerun the smallest relevant checks before claiming completio
 - Friends can use the app, but if some users do not receive verification emails, inspect Resend logs for delivered/bounced/failed/no-log cases before changing app code.
 - Public GitHub repo exists and tracks `codex/public-launch`.
 - PWA Web Push reminders are live for signed-in web users who add Donezo to the iPhone Home Screen, open it from that icon, enable web reminders in Settings, and allow notifications.
+- The public download page includes a separate iPhone/Home Screen setup guide for Apple users.
 - PWA Web Push server delivery now has a 5-minute after-time retry window and private delivery records, so a slightly delayed cron run should still send once if daily routines remain unfinished.
 - Production closed-app server delivery to Apple is verified as of `2026-08-04`: the Worker reached Apple Push and recorded `sent` for an unfinished New York iPhone reminder.
 - User has confirmed the reminder behavior appears to be working in real use.
@@ -171,10 +174,10 @@ For any new change, rerun the smallest relevant checks before claiming completio
 
 ## Next exact task
 
-Ask the user to test the Android `1.0.8` build `12` update/install path, confirm the final row controls/new-task-at-top behavior on Android, and then choose the next Donezo fix or feature.
+Ask the user to check the live download page's new iPhone section, test the Android `1.0.8` build `12` update/install path, confirm the final row controls/new-task-at-top behavior on Android, and then choose the next Donezo fix or feature.
 
 ## Fresh-chat opener
 
 ```text
-Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: Donezo Android 1.0.8 build 12 is the latest public APK/latest.json release, live at https://donezo.mv-builds.com/download with APK https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk. PWA Web Push reminders are deployed and verified. Task ordering is final: new tasks insert at the top, rows use the old left check circle and right up/down arrow controls, Delete is a compact trash icon, and task delete has a bottom Undo bar; drag/grip reorder was removed after user testing. Next task: ask the user to test the Android 1.0.8 update/install path and final row controls, then choose the next Donezo fix or feature. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim future Android update prompts are live until that future APK/latest.json are verified.
+Read AGENTS.md, CURRENT.md, and DIRECTION.md. Continue from branch codex/public-launch in C:\Users\manik\OneDrive\Documents\Donezo checklist app. Current state: Donezo Android 1.0.8 build 12 is the latest public APK/latest.json release, live at https://donezo.mv-builds.com/download with APK https://downloads.mv-builds.com/android/Donezo-1.0.8-build-12.apk. The public download page also has a separate iPhone/Home Screen setup guide explaining that iPhone users do not use APKs and should add Donezo from Safari before enabling web reminders. PWA Web Push reminders are deployed and verified. Task ordering is final: new tasks insert at the top, rows use the old left check circle and right up/down arrow controls, Delete is a compact trash icon, and task delete has a bottom Undo bar; drag/grip reorder was removed after user testing. Next task: ask the user to check the live iPhone download-page section, test the Android 1.0.8 update/install path and final row controls, then choose the next Donezo fix or feature. Do not restart the app, do not use mobile-design workflow unless explicitly asked, do not ask me to paste secrets in chat, and do not claim future Android update prompts are live until that future APK/latest.json are verified.
 ```

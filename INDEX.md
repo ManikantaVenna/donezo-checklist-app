@@ -32,7 +32,7 @@
 - `release-worker/src/index.ts` - Worker request handling.
 - `release-worker/src/release.ts` - release file/path logic.
 - `release-worker/wrangler.jsonc` - Cloudflare Worker config.
-- `checklist-app/public/download/index.html` - public Android download page.
+- `checklist-app/public/download/index.html` - public Android download page with iPhone/Home Screen setup guide.
 - `checklist-app/public/download.js` - download page behavior.
 - `checklist-app/public/releases/android/latest.json` - Android update manifest.
 - `reminder-worker/` - Cloudflare Worker cron for PWA Web Push reminders.

@@ -60,7 +60,7 @@ Donezo currently includes:
 - PWA Web Push reminders for iPhone/Home Screen web users.
 - Timezone selector with live preview.
 - A public support page and privacy page.
-- A permanent Android download page.
+- A permanent Android download page with iPhone/Home Screen setup steps.
 - A release manifest at `/releases/android/latest.json` for future update prompts.
 
 ## Running Locally
